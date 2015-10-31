@@ -1325,8 +1325,8 @@ int Unit::GetWeaponRange(bool ground) const
         range += 0x40;
     switch (unit_id)
     {
-        case Unit::Marine:
-            return range + GetUpgradeLevel(Upgrade::U_238Shells, player) * 0x20;
+        case Unit::Firebat: // Pronogo
+			return range + GetUpgradeLevel(Upgrade::U_238Shells, player) * 0x20;
         case Unit::Hydralisk:
             return range + GetUpgradeLevel(Upgrade::GroovedSpines, player) * 0x20;
         case Unit::Dragoon:
@@ -1350,6 +1350,46 @@ int Unit::GetWeaponRange(bool ground) const
         default:
             return range;
     }
+}
+
+// Bunny
+int Unit::GetWeaponRangeById(int weapon_id) const
+{
+	int range = weapons_dat_max_range[weapon_id];
+	// apply modifiers
+	if (flags & UnitStatus::InBuilding)
+		range += 0x40;
+	int gnd_wpn = GetGroundWeapon();
+	int air_wpn = GetAirWeapon();
+	if (weapon_id == gnd_wpn || weapon_id == air_wpn) // unit owns weapon: return range with potential modifiers
+		switch (unit_id)
+		{
+		case Unit::Firebat: // Pronogo
+			return range + GetUpgradeLevel(Upgrade::U_238Shells, player) * 0x20;
+		case Unit::Hydralisk:
+			return range + GetUpgradeLevel(Upgrade::GroovedSpines, player) * 0x20;
+		case Unit::Dragoon:
+			return range + GetUpgradeLevel(Upgrade::SingularityCharge, player) * 0x40;
+		case Unit::FenixDragoon: // o.o
+			if (*bw::is_bw)
+				return range + 0x40;
+			return range;
+		case Unit::Goliath:
+		case Unit::GoliathTurret:
+			if (weapon_id == gnd_wpn || *bw::is_bw == 0)
+				return range;
+			else
+				return range + GetUpgradeLevel(Upgrade::CharonBooster, player) * 0x60;
+		case Unit::AlanSchezar:
+		case Unit::AlanTurret:
+			if (weapon_id == gnd_wpn || *bw::is_bw == 0)
+				return range;
+			else
+				return range + 0x60;
+		default:
+			return range;
+		}
+	return range;
 }
 
 int Unit::GetSightRange(bool dont_check_blind) const
@@ -1396,7 +1436,7 @@ int Unit::GetTargetAcquisitionRange() const
             else
                 return units_dat_target_acquisition_range[unit_id];
         break;
-        case Marine:
+        case Unit::Firebat: // Pronogo
             return units_dat_target_acquisition_range[unit_id] + GetUpgradeLevel(Upgrade::U_238Shells, player);
         break;
         case Unit::Hydralisk:
@@ -1630,6 +1670,13 @@ int Unit::GetAirWeapon() const
 int Unit::GetCooldown(int weapon_id) const
 {
     int cooldown = weapons_dat_cooldown[weapon_id];
+	switch (unit_id) // Pronogo
+	{
+	case Marine:
+		if (int attackSpeedLevel = GetUpgradeLevel(Upgrade::BurstLasers, player))
+			cooldown = cooldown * (4 - attackSpeedLevel) / 4; // cooldown is 75%, 50%, 25%, (min...) of original cooldown based on upgrade level.
+		break;
+	}
     if (acid_spore_count)
     {
         if (cooldown / 8 < 3)
@@ -5227,11 +5274,12 @@ void Unit::TransferTechsAndUpgrades(int new_player)
 {
     switch (unit_id)
     {
-        case Marine:
+        case Firebat: // Pronogo
             TransferUpgrade(Upgrade::U_238Shells, player, new_player);
             TransferTech(Tech::Stimpacks, player, new_player);
         break;
-        case Firebat:
+        case Marine:
+			TransferUpgrade(Upgrade::BurstLasers, player, new_player); // Pronogo
             TransferTech(Tech::Stimpacks, player, new_player);
         break;
         case Ghost:

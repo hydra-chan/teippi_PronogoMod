@@ -1252,8 +1252,26 @@ Optional<SpellCast> Bullet::DoMissileDmg(ProgressBulletBufs *bufs)
             if (order_target_pos != Point(0, 0))
                 Maelstrom(parent, order_target_pos);
         break;
-        case 0x17:
-            // Unused as well
+        case 0x17: // Unknown (Crash)
+			// Intended for Pronogo's Poison effect.
+			if (target && ~flags & 0x1) // Miss
+			{
+				HitUnit(target, GetWeaponDamage(this, target), bufs);
+				if (~flags & 0x2 && ~units_dat_flags[target->unit_id] & UnitFlags::Building) // NO: Hallucination, Building
+				{
+					try
+					{
+						CustomTimers::Timer* poisonTimer = new CustomTimers::ProportionalPoison(target, 3, 24, 0.05, this->parent);
+						target->utm.AddTimer(poisonTimer);
+					}
+					catch (std::bad_alloc &e)
+					{
+						std::string s("bad_alloc: ");
+						s.append(e.what());
+						Print(s.c_str());
+					}
+				}
+			}
         break;
     }
     return Optional<SpellCast>();

@@ -29,6 +29,8 @@
 #include "targeting.h"
 #include "player.h"
 
+//#include "text.h" // Pronogo
+
 // Hack from game.cpp
 extern bool unitframes_in_progress;
 
@@ -801,6 +803,16 @@ static void RemoveFromBulletTargets_Hook()
     RemoveFromBulletTargets(unit);
 }
 
+// Pronogo
+// Neiv: "GetWeaponRange is at 00475870, takes int weapon_id in ebx and Unit *attacker in eax."
+int GetWeaponRange_Hook()
+{
+	REG_EAX(Unit *, attacker);
+	REG_EBX(int, weapon_id); // normally a uint8 is issued
+	weapon_id &= 0xff;
+	return attacker->GetWeaponRangeById(weapon_id);
+}
+
 void RemoveLimits(Common::PatchContext *patch)
 {
     Ai::RemoveLimits(patch);
@@ -919,8 +931,9 @@ void RemoveLimits(Common::PatchContext *patch)
 
     patch->JumpHook(bw::Trig_KillUnitGeneric, Trig_KillUnitGeneric_Hook);
     patch->JumpHook(bw::TriggerPortraitFinished, TriggerPortraitFinished_Hook);
-    bw::trigger_actions[0x7] = TrigAction_Transmission;
-    bw::trigger_actions[0xa] = TrigAction_CenterView;
+	// Pronogo
+    //bw::trigger_actions[0x7] = TrigAction_Transmission;
+    //bw::trigger_actions[0xa] = TrigAction_CenterView;
 
     patch->JumpHook(bw::ChangeMovementTargetToUnit, ChangeMovementTargetToUnit);
     patch->JumpHook(bw::ChangeMovementTarget, ChangeMovementTarget);
@@ -1000,4 +1013,7 @@ void RemoveLimits(Common::PatchContext *patch)
 
     char retn = 0xc3;
     patch->Patch(bw::ReplayCommands_Nothing, &retn, 1, PATCH_REPLACE);
+	
+	// Pronogo
+	patch->JumpHook(bw::GetWeaponRange, GetWeaponRange_Hook);
 }

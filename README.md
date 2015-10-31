@@ -1,6 +1,10 @@
 # Teippi
 Bw modhack thingy which removes several limits from the game and makes it run faster
 
+# _PronogoMod
+This plugin has been given additional and altered functionality from the original Teippi in order to provide support for features as required by the client Pronogo.
+These changes have been developed by Sand Wraith from staredit.net.
+
 # Building
 Python 3 is required to run the build script, and either gcc 4.9.2, clang 3.5 or visual studio 2015 is required to compile the code.
 

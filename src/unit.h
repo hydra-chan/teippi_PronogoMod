@@ -10,6 +10,8 @@
 #include "game.h"
 #include "ai_hit_reactions.h"
 
+#include "custom_timers.h" // Bunny
+
 #include <atomic>
 
 namespace UnitFlags
@@ -369,6 +371,14 @@ class Unit
         ListHead<Bullet, 0x70> targeting_bullets; // 0x150
         ListHead<Bullet, 0x78> spawned_bullets; // 0x154
 
+		// START mod
+		// Bunny
+
+		CustomTimers::UnitTimerManager utm;
+		int GetWeaponRangeById(int weapon_id) const; // used by GetWeaponRange_Hook
+
+		// END mod
+		
         Unit *first_loaded; // first_loaded and loaded_count are set for transport, next_loaded for contained units
         Unit *next_loaded;
 

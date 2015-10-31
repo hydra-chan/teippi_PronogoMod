@@ -58,5 +58,7 @@ int AttackSpeedUpgradeUnit(int upgrade)
 {
     if (upgrade == Upgrade::AdrenalGlands)
         return Unit::Zergling;
+	if (upgrade == Upgrade::BurstLasers) // Pronogo
+		return Unit::Marine;
     return Unit::None;
 }
