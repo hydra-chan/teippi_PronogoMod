@@ -43,6 +43,7 @@
     <ClInclude Include="src\constants\unit.h" />
     <ClInclude Include="src\constants\upgrade.h" />
     <ClInclude Include="src\custom_timers.h" />
+    <ClInclude Include="src\damage_calculation.h" />
     <ClInclude Include="src\datastream.h" />
     <ClInclude Include="src\dialog.h" />
     <ClInclude Include="src\draw.h" />
@@ -62,6 +63,7 @@
     <ClInclude Include="src\MPQDraftPlugin.h" />
     <ClInclude Include="src\nuke.h" />
     <ClInclude Include="src\offsets.h" />
+    <ClInclude Include="src\offsets_hooks.h" />
     <ClInclude Include="src\order.h" />
     <ClInclude Include="src\patchmanager.h" />
     <ClInclude Include="src\pathing.h" />

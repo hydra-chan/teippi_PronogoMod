@@ -59,6 +59,7 @@ namespace Weapon
     const int Maelstrom = 0x6c;
     const int SubterraneanSpines = 0x6d;
     const int None = 0x82;
+	const int STAPhotonCannon = 0x51; // Pronogo
 }
 
 enum class BulletState

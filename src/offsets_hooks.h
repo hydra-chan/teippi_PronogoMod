@@ -244,6 +244,9 @@ namespace bw
     const hook_offset MakeDetected = 0x00497ED0;
 
     const hook_offset AddDamageOverlay = 0x004993C0;
+
+	// Pronogo
+	const hook_offset GetWeaponRange = 0x00475870;
 }
 
 

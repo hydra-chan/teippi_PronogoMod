@@ -282,6 +282,12 @@
     <ClInclude Include="src\custom_timers.h">
       <Filter>Sources</Filter>
     </ClInclude>
+    <ClInclude Include="src\damage_calculation.h">
+      <Filter>Sources</Filter>
+    </ClInclude>
+    <ClInclude Include="src\offsets_hooks.h">
+      <Filter>Sources</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\ai.cpp">

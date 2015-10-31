@@ -4,6 +4,9 @@
 #include <tuple>
 #include <algorithm>
 
+// Pronogo
+#include "text.h"
+
 #include "unit.h"
 #include "unitsearch.h"
 #include "sprite.h"
