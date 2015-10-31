@@ -193,15 +193,15 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <NMakeBuildCommandLine>python waf</NMakeBuildCommandLine>
-    <NMakeCleanCommandLine>python waf clean</NMakeCleanCommandLine>
-    <NMakeReBuildCommandLine>python waf clean build</NMakeReBuildCommandLine>
+    <NMakeBuildCommandLine>py -3 waf</NMakeBuildCommandLine>
+    <NMakeCleanCommandLine>py -3 waf clean</NMakeCleanCommandLine>
+    <NMakeReBuildCommandLine>py -3 waf clean build</NMakeReBuildCommandLine>
     <NMakePreprocessorDefinitions>WIN32;_DEBUG;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <NMakeBuildCommandLine>python waf</NMakeBuildCommandLine>
-    <NMakeCleanCommandLine>python waf clean</NMakeCleanCommandLine>
-    <NMakeReBuildCommandLine>python waf clean build</NMakeReBuildCommandLine>
+    <NMakeBuildCommandLine>py -3 waf</NMakeBuildCommandLine>
+    <NMakeCleanCommandLine>py -3 waf clean</NMakeCleanCommandLine>
+    <NMakeReBuildCommandLine>py -3 waf clean build</NMakeReBuildCommandLine>
     <NMakePreprocessorDefinitions>WIN32;NDEBUG;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
   </PropertyGroup>
   <ItemDefinitionGroup>

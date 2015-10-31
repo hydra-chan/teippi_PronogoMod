@@ -930,8 +930,8 @@ void RemoveLimits(Common::PatchContext *patch)
     patch->JumpHook(bw::MovementState_Flyer, MovementState_Flyer);
 
     patch->JumpHook(bw::Trig_KillUnitGeneric, Trig_KillUnitGeneric_Hook);
-    patch->JumpHook(bw::TriggerPortraitFinished, TriggerPortraitFinished_Hook);
 	// Pronogo
+    //patch->JumpHook(bw::TriggerPortraitFinished, TriggerPortraitFinished_Hook);
     //bw::trigger_actions[0x7] = TrigAction_Transmission;
     //bw::trigger_actions[0xa] = TrigAction_CenterView;
 
