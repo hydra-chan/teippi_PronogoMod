@@ -18,7 +18,7 @@ void CreateBunkerShootOverlay(Unit *unit)
     int lo_direction = (((unit->facing_direction + 16) / 32) & 0x7);
     Point pos = lo.GetPosition(bunker_img, lo_direction);
 
-    if (unit->unit_id == Unit::Firebat || unit->unit_id == Unit::GuiMontag)
+    if (unit->unit_id == Unit::GuiMontag) // Pronogo - Removed "or Unit::Firebat"
     {
         direction = (((unit->facing_direction + 8) / 16) & 0xf) * 16;
         sprite = lone_sprites->AllocateLone(Sprite::FlameThrower, pos, unit->player);

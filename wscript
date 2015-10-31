@@ -163,7 +163,7 @@ def build(bld):
             'selection.cpp', 'sprite.cpp', 'strings.cpp', 'targeting.cpp', 'tech.cpp', 'text.cpp',
             'triggers.cpp', 'unit_ai.cpp', 'unit_movement.cpp', 'upgrade.cpp', 'x86.cpp', 'yms.cpp',
             'replay.cpp', 'warn.cpp', 'building.cpp', 'console/assert.cpp', 'init.cpp', 'bwlauncher.cpp',
-            'ai_hit_reactions.cpp', 'custom_timers.cpp']
+            'ai_hit_reactions.cpp', 'custom_timers.cpp'] # Bunny
     if console:
         src += ['scconsole.cpp', 'console/cmdargs.cpp', 'console/console.cpp',
                 'console/font.cpp', 'console/genericconsole.cpp']
