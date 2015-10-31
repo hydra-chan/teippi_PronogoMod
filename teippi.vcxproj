@@ -42,6 +42,7 @@
     <ClInclude Include="src\constants\tech.h" />
     <ClInclude Include="src\constants\unit.h" />
     <ClInclude Include="src\constants\upgrade.h" />
+    <ClInclude Include="src\custom_timers.h" />
     <ClInclude Include="src\datastream.h" />
     <ClInclude Include="src\dialog.h" />
     <ClInclude Include="src\draw.h" />
@@ -110,6 +111,7 @@
     <ClCompile Include="src\console\console.cpp" />
     <ClCompile Include="src\console\font.cpp" />
     <ClCompile Include="src\console\genericconsole.cpp" />
+    <ClCompile Include="src\custom_timers.cpp" />
     <ClCompile Include="src\datastream.cpp" />
     <ClCompile Include="src\dialog.cpp" />
     <ClCompile Include="src\draw.cpp" />
