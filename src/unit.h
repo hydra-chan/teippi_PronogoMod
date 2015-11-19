@@ -9,6 +9,7 @@
 #include "unitsearch_cache.h" // For UnitSearchRegionCache::Entry
 #include "game.h"
 #include "ai_hit_reactions.h"
+#include "pathing.h"
 
 #include "custom_timers.h" // Bunny
 
@@ -107,17 +108,39 @@ struct struct230
     uint8_t building_was_hit;
 };
 
+class UnitIscriptContext : public Iscript::Context
+{
+    public:
+        constexpr UnitIscriptContext(Unit *unit, ProgressUnitResults *results,
+                                     const char *caller, Rng *rng, bool can_delete) :
+            Iscript::Context(rng, can_delete),
+            unit(unit), results(results), caller(caller) { }
+
+        Unit * const unit;
+        ProgressUnitResults * const results;
+        const char * const caller;
+
+        void IscriptToIdle();
+        void ProgressIscript();
+        void SetIscriptAnimation(int anim, bool force);
+
+        virtual Iscript::CmdResult HandleCommand(Image *img, Iscript::Script *script,
+                                                 const Iscript::Command &cmd) override;
+        virtual void NewOverlay(Image *img) override;
+};
+
  // Derived from BWAPI's unit.h
 
 class Unit
 {
+    friend class UnitIscriptContext;
     public:
         static const size_t offset_of_allocated = 0xb8;
 
         // Sc data
         RevListEntry<Unit, 0x0> list;
         int32_t hitpoints;
-        Sprite *sprite;
+        ptr<Sprite> sprite;
 
         Point move_target; // 0x10
         Unit *move_target_unit; // 0x14
@@ -128,7 +151,7 @@ class Unit
         // 0x20
         uint8_t flingy_flags;
         uint8_t facing_direction;
-        uint8_t flingyTurnRadius;
+        uint8_t flingy_turn_speed;
         uint8_t movement_direction;
         uint16_t flingy_id;
         uint8_t _unknown_0x026;
@@ -173,7 +196,7 @@ class Unit
         Unit *previous_attacker;
 
         Unit *related;
-        uint8_t hightlighted_order_count; // 0x84
+        uint8_t highlighted_order_count; // 0x84
         uint8_t order_wait; // 0x85
         uint8_t unk86;
         uint8_t attack_notify_timer;
@@ -198,7 +221,7 @@ class Unit
         uint8_t secondary_order; // 0xa6
         uint8_t buildingOverlayState; // 0xa7
         uint16_t build_hp_gain; // 0xa8
-        uint16_t unkaa;
+        uint16_t build_shield_gain;
         uint16_t remaining_build_time;
         uint16_t previous_hp;
 
@@ -211,80 +234,43 @@ class Unit
         // Otherwise free to modify in synced code
         DummyListEntry<Unit, offset_of_allocated> allocated; // 0xb8
 
+        /// NOTE: While some of these union fields, such as spider mines or nuke,
+        /// are easy to use with a unit which is not supposed to have them,
+        /// saving the game will have issues unless Unit::serialize is modified
+        /// to know which units use which variant. However, as a safety measure,
+        /// the serialization function saves everything for units which should not
+        /// use any variants at all. If variant uses pointers then it *must* be explicitly
+        /// fixed, otherwise it just makes things clearer/safer (and saves some bytes)
+        /// (Ideally this union would not be extended, but used less?)
         union // c0 union
         {
-            struct
-            {
+            struct {
                 uint8_t spiderMineCount; // 0
             } vulture;
 
-            struct
-            {
+            struct {
                 ListHead<Unit, 0xc4> in_child;
                 ListHead<Unit, 0xc4> out_child;
                 uint8_t in_hangar_count;
                 uint8_t out_hangar_count;
             } carrier; // also applies to reaver
 
-            struct
-            {
+            struct {
                 Unit *parent;   // 0x0
                 ListEntry<Unit, 0xc4> list;
                 uint8_t is_outside_hangar;  // 0xC
             } interceptor;
 
-            struct
-            {
-                uint32_t _unknown_00;
-                uint32_t _unknown_04;
-                uint32_t flagSpawnFrame;
-            } beacon;
-
-            struct
-            {
+            struct {
                 Unit *addon;
-                uint16_t      addonBuildType;
-                uint16_t      upgradeResearchTime;
-                uint8_t       tech;
-                uint8_t       upgrade;
-                uint8_t       larva_timer;
-                uint8_t       is_landing;
-                uint8_t       creep_timer;
-                uint8_t       upgrade_level;
-                uint16_t      _padding_0E;
-                union
-                {
-                    struct
-                    {
-                        uint16_t resource_amount;
-                        uint8_t resourceIscript;
-                        uint8_t awaiting_workers;
-                        RevListHead<Unit, 0xd4> first_awaiting_worker;
-                        uint8_t resourceGroup;
-                        uint8_t ai_unk;
-                    } resource;
-
-                    struct { Unit *exit; } nydus;
-                    struct { Sprite *nukedot; } ghost;
-                    struct { Sprite *aura; } pylon;
-
-                    struct
-                    {
-                        Unit *nuke; // d0
-                        uint32_t has_nuke; // d4
-                    } silo;
-
-                    struct
-                    {
-                        Rect16 preferred_larvaspawn;
-                    } hatchery;
-
-                    struct
-                    {
-                        Point origin_point;
-                        Unit *carrying_unit;
-                    } powerup;
-                };
+                uint16_t addonBuildType;
+                uint16_t upgradeResearchTime;
+                uint8_t tech;
+                uint8_t upgrade;
+                uint8_t larva_timer;
+                uint8_t is_landing;
+                uint8_t creep_timer;
+                uint8_t upgrade_level;
             } building;
 
             struct
@@ -295,9 +281,42 @@ class Unit
                 uint16_t repair_resource_loss_timer;
                 uint8_t is_carrying;
                 uint8_t carried_resource_count;
+            } worker;
+        };
+        union // d0 union
+        {
+            struct {
+                uint16_t resource_amount;
+                uint8_t resourceIscript;
+                uint8_t awaiting_workers;
+                RevListHead<Unit, 0xd4> first_awaiting_worker;
+                uint8_t resource_area;
+                uint8_t ai_unk;
+            } resource;
+
+            struct {
                 Unit *previous_harvested;
                 RevListEntry<Unit, 0xd4> harvesters;
-            } worker;
+            } harvester;
+
+            struct { Unit *exit; } nydus;
+            /// Owned and animated by LoneSpriteSystem
+            struct { Sprite *nukedot; } ghost;
+            /// Owned by this unit, not animated.
+            /// Really messy as this is inside union.
+            struct { ptr<Sprite> aura; } pylon;
+
+            struct {
+                Unit *nuke; // d0
+                uint32_t has_nuke; // d4
+            } silo;
+
+            struct { Rect16 preferred_larvaspawn; } hatchery;
+
+            struct {
+                Point origin_point;
+                Unit *carrying_unit;
+            } powerup;
         };
 
         uint32_t flags; // 0xdc
@@ -313,18 +332,15 @@ class Unit
         RevListEntry<Unit, 0xf0> invisible_list; // 0xf0
         union
         {
-            struct
-            {
+            struct {
                 Point position;
                 Unit *unit;
             } rally;
-            struct
-            {
-                RevListEntry<Unit, 0xf8> list;
-            } pylon;
+
+            struct { RevListEntry<Unit, 0xf8> list; } pylon_list;
         };
 
-        Path *path; // 0x100
+        ptr<Path> path; // 0x100
         uint8_t path_frame; // 0x104
         uint8_t pathing_flags;
         uint8_t _unused_0x106;
@@ -347,7 +363,7 @@ class Unit
         uint8_t master_spell_timer;
         uint8_t blind;
         uint8_t mael_timer;
-        uint8_t unused;
+        uint8_t _unused_125;
         uint8_t acid_spore_count;
         uint8_t acid_spore_timers[9];
 
@@ -421,7 +437,7 @@ class Unit
         void *operator new(size_t size);
 #endif
         Unit();
-        ~Unit();
+        ~Unit() { if (unit_id == Pylon) { pylon.aura.~unique_ptr<Sprite>(); } }
 
         static std::pair<int, Unit *> SaveAllocate(uint8_t *in, uint32_t size, DummyListHead<Unit, Unit::offset_of_allocated> *list_head, uint32_t *out_id);
 
@@ -451,6 +467,7 @@ class Unit
         bool IsUnreachable(const Unit *other) const;
         bool IsCritter() const;
         bool IsWorker() const { return units_dat_flags[unit_id] & UnitFlags::Worker; }
+        bool IsHero() const { return units_dat_flags[unit_id] & UnitFlags::Hero; }
         bool IsFlying() const { return flags & UnitStatus::Air; }
         bool IsInvincible() const { return flags & UnitStatus::Invincible; }
 
@@ -657,11 +674,18 @@ class Unit
         std::string DebugStr() const;
         const char *GetName() const;
 
+        /// Progresses iscript by a frame. Sprite may become nullptr if all images
+        /// are deleted by this function.
+        void ProgressIscript(const char *caller, ProgressUnitResults *results);
+        /// Hack for hooks
+        void SetIscriptAnimationForImage(Image *img, int anim);
+
     private:
         static Unit *RawAlloc();
-        Unit(bool) {} // raw alloc
+        Unit(bool); // Raw alloc
 
         void AddToLookup();
+        Entity *AsEntity();
 
         Unit *PickBestTarget(Unit **targets, int amount) const;
         /// These two are used by Ai_IsBetterTarget
@@ -677,7 +701,7 @@ class Unit
         void ProgressFrame(ProgressUnitResults *results);
         void ProgressFrame_Late(ProgressUnitResults *results);
         void ProgressFrame_Hidden(ProgressUnitResults *results);
-        bool ProgressFrame_Dying(); // Return true when deleted
+        bool ProgressFrame_Dying(ProgressUnitResults *results); // Return true when deleted
         void ProgressTimers(ProgressUnitResults *results);
         template <bool flyers> void ProgressActiveUnitFrame();
         void ProgressOrder(ProgressUnitResults *results);
@@ -691,9 +715,6 @@ class Unit
 
         static Unit ** const id_lookup;
         static vector<Unit *>temp_flagged;
-
-        Sprite::ProgressFrame_C SetIscriptAnimation(int anim, bool force);
-        void SetIscriptAnimation_NoHandling(int anim, bool force, const char *caller, ProgressUnitResults *results);
 
         // Returns all attackers with which UnitWasHit has to be called
         vector<Unit *> RemoveFromResults(ProgressUnitResults *results);
@@ -760,6 +781,15 @@ class Unit
         void CancelTrain(ProgressUnitResults *results);
         void TransferTechsAndUpgrades(int new_player);
         void Order_Train(ProgressUnitResults *results);
+        void Order_ProtossBuildSelf(ProgressUnitResults *results);
+        /// Increases hp and reduces build time (if needed).
+        /// Might be only be used for protoss buildings.
+        void ProgressBuildingConstruction();
+
+        Iscript::CmdResult HandleIscriptCommand(UnitIscriptContext *ctx, Image *img,
+                                                Iscript::Script *script, const Iscript::Command &cmd);
+        void WarnUnhandledIscriptCommand(const Iscript::Command &cmd, const char *caller) const;
+        void SetIscriptAnimation(int anim, bool force, const char *caller, ProgressUnitResults *results);
 
     public:
         static uint32_t next_id;
@@ -769,6 +799,8 @@ class Unit
 
 extern DummyListHead<Unit, Unit::offset_of_allocated> first_allocated_unit;
 extern DummyListHead<Unit, Unit::offset_of_allocated> first_movementstate_flyer;
+
+extern bool late_unit_frames_in_progress;
 
 static_assert(Unit::offset_of_allocated == offsetof(Unit, allocated), "Unit::allocated offset");
 

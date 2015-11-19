@@ -18,6 +18,8 @@
 
 #include "log.h"
 
+using std::min;
+
 LoneSpriteSystem *lone_sprites;
 
 uint32_t Sprite::next_id = 1;
@@ -36,10 +38,65 @@ void *Sprite::operator new(size_t size)
 }
 #endif
 
+class SpriteIscriptContext : public Iscript::Context
+{
+    public:
+        constexpr SpriteIscriptContext(Sprite *sprite, Rng *rng, const char *caller, bool can_delete) :
+            Iscript::Context(rng, can_delete), sprite(sprite), caller(caller) { }
+
+        Sprite * const sprite;
+        const char * const caller;
+
+        void ProgressIscript() { sprite->ProgressFrame(this); }
+        void SetIscriptAnimation(int anim, bool force) { sprite->SetIscriptAnimation(this, anim, force); }
+
+        virtual Iscript::CmdResult HandleCommand(Image *img, Iscript::Script *script,
+                                                 const Iscript::Command &cmd) override
+        {
+            // Firebat's attack sprite has this in normal bw, and it is
+            // lone when the firebat is inside bunker.
+            if (cmd.opcode == Iscript::Opcode::NoBrkCodeEnd || cmd.opcode == Iscript::Opcode::GotoRepeatAttk)
+                return Iscript::CmdResult::Handled;
+            Iscript::CmdResult result = sprite->HandleIscriptCommand(this, img, script, cmd);
+            if (result == Iscript::CmdResult::NotHandled)
+            {
+                Warning("Unhandled iscript command %s in %s, image %s",
+                        cmd.DebugStr().c_str(), caller, img->DebugStr().c_str());
+            }
+            return result;
+        }
+};
 
 Sprite::Sprite()
 {
+    id = next_id++;
+    if (next_id == 0)
+    {
+        PackIds();
+    }
+    count++;
+    if (count > draw_order_limit)
+    {
+        draw_order_limit *= 2;
+        if (draw_order == (Sprite **)bw::units.raw_pointer())
+            draw_order = (Sprite **)malloc(draw_order_limit * sizeof(Sprite *));
+        else
+            draw_order = (Sprite **)realloc(draw_order, draw_order_limit * sizeof(Sprite *));
+    }
     index = 0;
+}
+
+Sprite::~Sprite()
+{
+    // Selection overlays are still static bw arrays
+    // (Though they should have been already removed)
+    RemoveSelectionOverlays();
+    for (Image *img = first_overlay; img != nullptr;)
+    {
+        Image *next = img->list.next;
+        delete img;
+        img = next;
+    }
 }
 
 void Sprite::PackIds()
@@ -82,76 +139,108 @@ void Sprite::AddToHlines()
     }
 }
 
-Sprite *Sprite::RawAlloc()
+void Sprite::Hide()
 {
-    Sprite *sprite;
-    sprite = new Sprite;
-    sprite->id = next_id++;
-    if (next_id == 0)
-    {
-        PackIds();
-    }
-    count++;
-    if (count > draw_order_limit)
-    {
-        draw_order_limit *= 2;
-        if (draw_order == (Sprite **)bw::units.raw_pointer())
-            draw_order = (Sprite **)malloc(draw_order_limit * sizeof(Sprite *));
-        else
-            draw_order = (Sprite **)realloc(draw_order, draw_order_limit * sizeof(Sprite *));
-    }
-    return sprite;
+    flags |= SpriteFlags::Hidden;
+    SetVisibility(this, 0);
 }
 
-Sprite *Sprite::AllocateBase(int sprite_id, const Point &pos, int player)
+void Sprite::AddOverlayAboveMain(Iscript::Context *ctx, int image_id, int x, int y, int direction)
 {
-    Sprite *sprite = RawAlloc();
-
-    sprite->main_image = nullptr;
-    sprite->first_overlay = nullptr;
-    sprite->last_overlay = nullptr;
-    if (InitializeSprite(sprite, sprite_id, pos.x, pos.y, player) == 0)
+    Image *image = new Image(this, image_id, x, y);
+    if (first_overlay != nullptr)
     {
-        // Remove() can't be called as AddToHlines() hasn't been called
-        // So lazy way of doing things
-        Assert(!sprite->first_overlay);
-        count--;
-        return nullptr;
+        if (main_image == first_overlay)
+            first_overlay = image;
+        image->list.prev = main_image->list.prev;
+        image->list.next = main_image;
+        if (image->list.prev != nullptr)
+            image->list.prev->list.next = image;
+        main_image->list.prev = image;
     }
     else
     {
-        //debug_log->Log("Init main image: ID %x, addr %p, parent %p (%d)\n", sprite->main_image->image_id, sprite->main_image, sprite->main_image->parent, sprite->main_image->parent == sprite);
-
-        sprite->AddToHlines();
-        return sprite;
+        main_image = image;
+        first_overlay = image;
+        last_overlay = image;
     }
+    bool success = image->InitIscript(ctx);
+    if (!success)
+    {
+        image->SingleDelete();
+        return;
+    }
+    SetImageDirection32(image, direction);
 }
 
-Sprite *Sprite::Allocate(int sprite_id, const Point &pos, int player)
+bool Sprite::Initialize(Iscript::Context *ctx, int sprite_id_, const Point &pos, int player_)
 {
-    return AllocateBase(sprite_id, pos, player);
+    if (pos.x >= *bw::map_width || pos.y >= *bw::map_height)
+    {
+        count--;
+        return false;
+    }
+    main_image = nullptr;
+    first_overlay = nullptr;
+    last_overlay = nullptr;
+
+    player = player_;
+    sprite_id = sprite_id_;
+    flags = 0;
+    position = pos;
+    visibility_mask = 0xff;
+    elevation = 4;
+    selection_flash_timer = 0;
+    if (sprites_dat_start_as_visible[sprite_id] == 0)
+        Hide();
+
+    AddOverlayAboveMain(ctx, sprites_dat_image[sprite_id], 0, 0, 0);
+
+    width = min(255, (int)main_image->grp->width);
+    height = min(255, (int)main_image->grp->height);
+
+    AddToHlines();
+    return true;
+}
+
+ptr<Sprite> Sprite::Allocate(Iscript::Context *ctx, int sprite_id, const Point &pos, int player)
+{
+    ptr<Sprite> sprite(new Sprite);
+    if (!sprite->Initialize(ctx, sprite_id, pos, player))
+        return nullptr;
+    return sprite;
+}
+
+Sprite *Sprite::AllocateWithBasicIscript(int sprite_id, const Point &pos, int player)
+{
+    ptr<Sprite> sprite(new Sprite);
+    SpriteIscriptContext ctx(sprite.get(), MainRng(), "Sprite::AllocateWithBasicIscript", false);
+    if (!sprite->Initialize(&ctx, sprite_id, pos, player))
+        return nullptr;
+    return sprite.release();
 }
 
 Sprite *LoneSpriteSystem::AllocateLone(int sprite_id, const Point &pos, int player)
 {
-    Sprite *sprite = Sprite::AllocateBase(sprite_id, pos, player);
-    if (sprite)
-    {
-        sprite->container_index = lone_sprites.size();
-        lone_sprites.emplace_back(sprite);
-    }
-    return sprite;
+    ptr<Sprite> sprite(new Sprite);
+    SpriteIscriptContext ctx(sprite.get(), MainRng(), "LoneSpriteSystem::AllocateLone", false);
+    if (!sprite->Initialize(&ctx, sprite_id, pos, player))
+        return nullptr;
+
+    lone_sprites.emplace(move(sprite));
+    return lone_sprites.back().get();
 }
 
 Sprite *LoneSpriteSystem::AllocateFow(Sprite *base, int unit_id)
 {
-    Sprite *sprite = Sprite::AllocateBase(base->sprite_id, base->position, base->player);
-    if (!sprite)
+    ptr<Sprite> sprite_ptr(new Sprite);
+    SpriteIscriptContext ctx(sprite_ptr.get(), MainRng(), "LoneSpriteSystem::AllocateFow", false);
+    if (!sprite_ptr->Initialize(&ctx, base->sprite_id, base->position, base->player))
         return nullptr;
 
+    fow_sprites.emplace(move(sprite_ptr));
+    Sprite *sprite = fow_sprites.back().get();
     sprite->index = unit_id;
-    sprite->container_index = fow_sprites.size();
-    fow_sprites.emplace_back(sprite);
 
     for (Image *img = sprite->first_overlay, *next; img; img = next)
     {
@@ -166,7 +255,7 @@ Sprite *LoneSpriteSystem::AllocateFow(Sprite *base, int unit_id)
         Image *current = AddOverlayNoIscript(sprite, img->image_id, img->x_off, img->y_off, img->direction);
         current->frame = img->frame;
         current->frameset = img->frameset;
-        current->SetFlipping(img->flags & 0x2);
+        current->SetFlipping(img->IsFlipped());
         PrepareDrawImage(current);
         if (img == base->main_image)
             sprite->main_image = current;
@@ -218,11 +307,6 @@ void Sprite::Remove()
     count--;
 }
 
-void Sprite::SingleDelete()
-{
-    Remove();
-}
-
 void LoneSpriteSystem::DeleteAll()
 {
     lone_sprites.clear();
@@ -256,7 +340,8 @@ uint32_t Sprite::GetZCoord() const
     int y = 0;
     if (elevation <= 4)
         y = position.y;
-    return (elevation << 0x1b) | (y << 0xb) | (flags & 0x10); // There would be 11 bits space after flag 0x10 << 6
+    // There would be 11 bits space after flag 0x10 << 6
+    return (elevation << 0x1b) | (y << 0xb) | (flags & SpriteFlags::Unk10);
 }
 
 void Sprite::CreateDrawSpriteList()
@@ -415,16 +500,25 @@ void UpdateDoodadVisibility(Sprite *sprite)
     // Orig func returns shit but not necessary now
 }
 
-Sprite::ProgressFrame_C ProgressLoneSpriteFrame(Sprite *sprite)
+/// Returns true if sprite should be deleted.
+static bool ProgressLoneSpriteFrame(Sprite *sprite)
 {
-    if (sprite->sprite_id > 0x81 && (sprite->sprite_id < 0x182 || sprite->sprite_id > 0x1e0))
+    // Skip doodads
+    if ((sprite->sprite_id > Sprite::LastScDoodad && sprite->sprite_id < Sprite::FirstBwDoodad) ||
+            sprite->sprite_id > Sprite::LastBwDoodad)
+    {
         sprite->UpdateVisibilityArea();
+    }
     else
         UpdateDoodadVisibility(sprite);
-    return sprite->ProgressFrame(IscriptContext(), main_rng);
+
+    SpriteIscriptContext ctx(sprite, MainRng(), "ProgressLoneSpriteFrame", true);
+    ctx.ProgressIscript();
+    return ctx.CheckDeleted();
 }
 
-bool ProgressLoneSprite2Frame(Sprite *sprite)
+/// Returns true if sprite should be deleted.
+static bool ProgressFowSpriteFrame(Sprite *sprite)
 {
     if (sprite->player < Limits::Players)
         DrawTransmissionSelectionCircle(sprite, bw::self_alliance_colors[sprite->player]);
@@ -437,35 +531,27 @@ bool ProgressLoneSprite2Frame(Sprite *sprite)
     if (!IsCompletelyHidden(x, y, width, height))
     {
         RemoveSelectionCircle(sprite);
-        return false;
+        return true;
     }
-    return true;
+    return false;
 }
 
 void LoneSpriteSystem::ProgressFrames()
 {
-    for (ptr<Sprite> &sprite : lone_sprites.SafeIter())
+    for (auto entry : lone_sprites.Entries())
     {
-        for (auto &cmd : ProgressLoneSpriteFrame(sprite.get()))
+        if (ProgressLoneSpriteFrame(entry->get()) == true)
         {
-            if (cmd.opcode == IscriptOpcode::End)
-            {
-                sprite->Remove();
-                lone_sprites.back()->container_index = sprite->container_index;
-                lone_sprites.erase_at(sprite->container_index);
-            }
-            else
-                Warning("LoneSpriteSystem::ProgressFrames did not handle iscript command %x for sprite %x",
-                       cmd.opcode, sprite->sprite_id);
+            entry->get()->Remove();
+            entry.swap_erase();
         }
     }
-    for (ptr<Sprite> &sprite : fow_sprites.SafeIter())
+    for (auto entry : fow_sprites.Entries())
     {
-        if (ProgressLoneSprite2Frame(sprite.get()) == false)
+        if (ProgressFowSpriteFrame(entry->get()) == true)
         {
-            sprite->Remove();
-            fow_sprites.back()->container_index = sprite->container_index;
-            fow_sprites.erase_at(sprite->container_index);
+            entry->get()->Remove();
+            entry.swap_erase();
         }
     }
 }
@@ -550,43 +636,16 @@ Sprite *Sprite::FindFowTarget(int x, int y)
 
 void Sprite::MarkHealthBarDirty()
 {
-    if (~flags & 0x8)
+    if (~flags & SpriteFlags::HasHealthBar)
         return;
     for (Image *img : first_overlay)
     {
         if (img->drawfunc == Image::HpBar)
         {
-            img->flags |= 0x1;
+            img->flags |= ImageFlags::Redraw;
             return;
         }
     }
-}
-
-Sprite::ProgressFrame_C Sprite::IscriptToIdle(const IscriptContext &ctx, Rng *rng)
-{
-    switch (main_image->iscript.animation)
-    {
-        case IscriptAnim::GndAttkInit:
-        case IscriptAnim::GndAttkRpt:
-            return SetIscriptAnimation(IscriptAnim::GndAttkToIdle, true, ctx, rng);
-        break;
-        case IscriptAnim::AirAttkInit:
-        case IscriptAnim::AirAttkRpt:
-            return SetIscriptAnimation(IscriptAnim::AirAttkToIdle, true, ctx, rng);
-        break;
-        case IscriptAnim::AlmostBuilt:
-            if (sprite_id == SCV || sprite_id == Drone || sprite_id == Probe)
-                return SetIscriptAnimation(IscriptAnim::GndAttkToIdle, true, ctx, rng);
-        break;
-        case IscriptAnim::Special1:
-            if (sprite_id == Medic)
-                return SetIscriptAnimation(IscriptAnim::Idle, true, ctx, rng);
-        break;
-        case IscriptAnim::CastSpell:
-            return SetIscriptAnimation(IscriptAnim::Idle, true, ctx, rng);
-        break;
-    }
-    return ProgressFrame_C(nullptr, -1, ctx, rng);
 }
 
 void Sprite::SetFlipping(bool set)
@@ -626,23 +685,25 @@ void DrawCursorMarker()
             PrepareDrawImage(img);
         DrawSprite(marker);
         for (Image *img : marker->first_overlay)
-            img->flags |= 0x1;
+            img->flags |= ImageFlags::Redraw;
     }
+}
+
+void Sprite::SetIscriptAnimation_Lone(int anim, bool force, Rng *rng, const char *caller)
+{
+    SpriteIscriptContext(this, MainRng(), caller, false).SetIscriptAnimation(anim, force);
 }
 
 void ShowCursorMarker(int x, int y)
 {
     Sprite *marker = *bw::cursor_marker;
     MoveSprite(marker, x, y);
-    auto cmds = marker->SetIscriptAnimation(IscriptAnim::GndAttkInit, true);
-    if (!Empty(cmds))
-        Warning("Iscript for the cursor marker has nonmeaningful commands");
+    marker->SetIscriptAnimation_Lone(Iscript::Animation::GndAttkInit, true, MainRng(), "ShowCursorMarker");
     *bw::draw_cursor_marker = 1;
 }
 
 void ShowRallyTarget(Unit *unit)
 {
-
     int x = unit->rally.position.x, y = unit->rally.position.y;
     if ((x || y) && (unit->position != unit->rally.position))
     {
@@ -737,7 +798,7 @@ Sprite *__stdcall FindBlockingFowResource(int x_tile, int y_tile, int radius)
 
 void Sprite::RemoveSelectionOverlays()
 {
-    if (flags & 0x8)
+    if (flags & SpriteFlags::HasHealthBar)
     {
         for (Image *img : first_overlay)
         {
@@ -747,9 +808,9 @@ void Sprite::RemoveSelectionOverlays()
                 break;
             }
         }
-        flags &= ~0x8;
+        flags &= ~SpriteFlags::HasHealthBar;
     }
-    if (flags & 0x6)
+    if (flags & SpriteFlags::DashedSelectionMask)
     {
         for (Image *img : first_overlay)
         {
@@ -759,9 +820,9 @@ void Sprite::RemoveSelectionOverlays()
                 break;
             }
         }
-        flags &= ~0x6;
+        flags &= ~SpriteFlags::DashedSelectionMask;
     }
-    if (flags & 0x1)
+    if (flags & SpriteFlags::HasSelectionCircle)
     {
         for (Image *img : first_overlay)
         {
@@ -771,7 +832,7 @@ void Sprite::RemoveSelectionOverlays()
                 break;
             }
         }
-        flags &= ~0x1;
+        flags &= ~SpriteFlags::HasSelectionCircle;
     }
 }
 
@@ -839,8 +900,43 @@ void Sprite::AddDamageOverlay()
     Assert(result_pos <= results.end());
     if (result_pos != results.begin())
     {
-        int variation = results[main_rng->Rand(result_pos - results.begin())];
+        int variation = results[MainRng()->Rand(result_pos - results.begin())];
         Point32 pos = overlay.GetValues(main_image, variation);
         AddOverlayHighest(this, Image::FirstMinorDamageOverlay + variation, pos.x, pos.y, 0);
     }
+}
+
+void Sprite::IscriptToIdle(Iscript::Context *ctx)
+{
+    using namespace Iscript::Animation;
+    int anim;
+    switch (main_image->iscript.animation)
+    {
+        case GndAttkInit:
+        case GndAttkRpt:
+            anim = GndAttkToIdle;
+        break;
+        case AirAttkInit:
+        case AirAttkRpt:
+            anim = AirAttkToIdle;
+        break;
+        case AlmostBuilt:
+            if (sprite_id == SCV || sprite_id == Drone || sprite_id == Probe)
+                anim = GndAttkToIdle;
+            else
+                return;
+        break;
+        case Special1:
+            if (sprite_id == Medic)
+                anim = Idle;
+            else
+                return;
+        break;
+        case CastSpell:
+            anim = Idle;
+        break;
+        default:
+            return;
+    }
+    SetIscriptAnimation(ctx, anim, true);
 }

@@ -7,6 +7,7 @@ def options(opt):
     opt.load('compiler_cxx')
     opt.add_option('--debug', action='store_true', help='"Debug" build', dest='debug')
     opt.add_option('--nodebug', action='store_true', help='Release build (Default)', dest='nodebug')
+    opt.add_option('--optimize', action='store_true', help='Optimize always', dest='optimize')
     opt.add_option('--static', action='store_true', help='Enable static linkage (Default)', dest='static')
     opt.add_option('--nostatic', action='store_true', help='Disable static linkage', dest='nostatic')
     opt.add_option('--console', action='store_true', help='Console support (Requires freetype2)', dest='console')
@@ -39,6 +40,7 @@ def configure(conf):
                 conf.fatal('Freetype not found, please pass --freetype-include and --freetype-lib manually')
 
     conf.env.debug = conf.options.debug and not conf.options.nodebug
+    conf.env.optimize = conf.options.optimize
     conf.env.static = conf.options.static or not conf.options.nostatic
     conf.env.console = conf.options.console and not conf.options.noconsole
     conf.env.perf_test = conf.options.perf_test
@@ -51,9 +53,19 @@ def configure(conf):
     if msvc:
         cflags = []
     else:
-        cflags = ['-m32', '-march=i686', '-Wall', '-g', '-O3']
+        cflags = ['-m32', '-march=i686', '-Wall', '-g']
     conf.env.append_value('CFLAGS', cflags)
     conf.env.append_value('CXXFLAGS', cflags)
+
+# Lazy way to split list of paths, names is input and split_these are paths that are to be
+# moved to a separate list.
+# split_files(['a', 'b', 'c', 'asd'], ['a']) would return (['b', 'c'], ['a', 'asd'])
+def split_files(names, split_these):
+    second = []
+    for name in split_these:
+        second += [path for path in names if name in path.srcpath()]
+        names = [path for path in names if not name in path.srcpath()]
+    return names, second
 
 def build(bld):
     if bld.options.debug and bld.options.nodebug:
@@ -61,6 +73,7 @@ def build(bld):
     debug = (bld.env.debug or bld.options.debug) and not bld.options.nodebug
     if bld.options.static and bld.options.nostatic:
         bld.fatal('Both --static and --nostatic were specified')
+    optimize = bld.env.optimize or bld.options.optimize
     static = (bld.options.static or bld.env.static) and not bld.options.nostatic
     if bld.options.console and bld.options.noconsole:
         bld.fatal('Both --console and --noconsole were specified')
@@ -86,6 +99,9 @@ def build(bld):
         cflags += ['-Wno-format']
         if bld.env.CXX_NAME == 'gcc':
             cflags += ['-Wno-strict-overflow', '-Wno-sign-compare']
+        # Only msvc works without optimizations atm
+        #if perf_test or not debug or optimize:
+        cflags += ['-O3']
         cxxflags += ['--std=gnu++14']
         noexcept_cxxflags += ['-fno-exceptions']
         linkflags += ['-m32', '-pthread', '-Wl,--shared']
@@ -98,7 +114,7 @@ def build(bld):
             linkflags += ['-static']
             bld.env.SHLIB_MARKER = ''
     else:
-        if perf_test or not debug:
+        if perf_test or not debug or optimize:
             cflags += ['/Ox']
         libs += ['user32']
         except_cxxflags += ['/EHsc']
@@ -155,6 +171,7 @@ def build(bld):
 
     cxxflags += cflags
 
+<<<<<<< HEAD
     src = ['unit.cpp', 'commands.cpp', 'ai.cpp', 'bullet.cpp', 'bunker.cpp', 'datastream.cpp',
             'dialog.cpp', 'flingy.cpp', 'game.cpp', 'image.cpp', 'iscript.cpp', 'limits.cpp',
             'lofile.cpp', 'log.cpp', 'mainpatch.cpp', 'memory.cpp', 'mpqdraft.cpp', 'nuke.cpp',
@@ -169,10 +186,22 @@ def build(bld):
                 'console/font.cpp', 'console/genericconsole.cpp']
     if debug:
         src += ['test_game.cpp']
+=======
+>>>>>>> refs/remotes/neivv/master
     src_with_exceptions = ['save.cpp', 'patchmanager.cpp']
 
-    src = ['src/' + file for file in src]
-    src_with_exceptions = ['src/' + file for file in src_with_exceptions]
+    src = bld.path.ant_glob('src/*.cpp')
+    src += bld.path.ant_glob('src/console/*.cpp')
+    src += bld.path.ant_glob('src/common/*.cpp')
+    src, exception_src = split_files(src, ['save', 'patchmanager'])
+    src, debug_src = split_files(src, ['test_game'])
+    # Have to console.cpp as split_files does just a simple substring match atm
+    # and it would match all files in console (No, the files aren't organized logically)
+    src, console_src = split_files(src, ['scconsole', 'console.cpp', 'cmdargs', 'genericconsole', 'font'])
+    if console:
+        src += console_src
+    if debug:
+        src += debug_src
 
     includes += [bld.bldnode.find_dir('src')]
     if msvc:
@@ -191,7 +220,7 @@ def build(bld):
 
     bld.objects(source=src, cflags=cflags, cxxflags=cxxflags + noexcept_cxxflags,
             defines=defines + noexcept_defines, includes=includes, target='obj')
-    bld.objects(source=src_with_exceptions, cxxflags=cxxflags + except_cxxflags, defines=defines, includes=includes, target='obj_with_exceptions')
+    bld.objects(source=exception_src, cxxflags=cxxflags + except_cxxflags, defines=defines, includes=includes, target='obj_with_exceptions')
     if not msvc:
         bld(rule='objcopy -S ${SRC} ${TGT}', source='teippi.qdp', target='teippi_stripped.qdp')
 

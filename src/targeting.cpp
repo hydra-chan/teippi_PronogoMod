@@ -114,7 +114,7 @@ void SendRightClickCommand(Unit *target, uint16_t x, uint16_t y, uint16_t fow_un
     SendCommand(cmd, 10);
 }
 
-void Command_RightClick(uint8_t *buf)
+void Command_RightClick(const uint8_t *buf)
 {
     uint16_t x = *(uint16_t *)(buf + 1);
     uint16_t y = *(uint16_t *)(buf + 3);
@@ -211,7 +211,7 @@ void Command_RightClick(uint8_t *buf)
     }
 }
 
-void Command_Targeted(uint8_t *buf)
+void Command_Targeted(const uint8_t *buf)
 {
     uint16_t x = *(uint16_t *)(buf + 1);
     uint16_t y = *(uint16_t *)(buf + 3);
@@ -517,9 +517,9 @@ void __fastcall GameScreenLClickEvent_Targeting(Event *event)
     Unit *target = FindUnitAtPoint(x, y);
     Sprite *fow;
     if (!target)
-        fow = ShowCommandResponse(x, y, 0);
+        fow = ShowCommandResponse(x, y, nullptr);
     else
-        fow = ShowCommandResponse(x, y, target->sprite);
+        fow = ShowCommandResponse(x, y, target->sprite.get());
 
     if (fow)
         DoTargetedCommand(x, y, target, fow->index);
@@ -582,7 +582,7 @@ void __fastcall GameScreenRClickEvent(Event *event)
     }
     else
     {
-        ShowCommandResponse(x, y, target->sprite);
+        ShowCommandResponse(x, y, target->sprite.get());
         SendRightClickCommand(target, x, y, Unit::None, *bw::is_queuing_command);
     }
 

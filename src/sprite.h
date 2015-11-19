@@ -5,7 +5,7 @@
 #include "offsets.h"
 #include "list.h"
 #include "image.h"
-#include "common/unsorted_vector.h"
+#include "unsorted_list.h"
 #include "common/iter.h"
 #include "rng.h"
 #include <tuple>
@@ -19,6 +19,17 @@ Sprite *ShowCommandResponse(int x, int y, Sprite *alternate);
 Sprite *__stdcall FindBlockingFowResource(int x_tile, int y_tile, int radius);
 
 extern "C" void __stdcall SetSpriteDirection(int direction);
+
+namespace SpriteFlags
+{
+    const int HasSelectionCircle = 0x1;
+    const int DashedSelectionMask = 0x6; // Team can have max 4 players, so max 0..3 dashed circles
+    const int HasHealthBar = 0x8;
+    const int Unk10 = 0x10; // Draw sort?
+    const int Hidden = 0x20;
+    const int Unk40 = 0x40; // Became uncloaked?
+    const int Nobrkcodestart = 0x80;
+}
 
 #pragma pack(push)
 #pragma pack(1)
@@ -49,19 +60,24 @@ class Sprite
         uint32_t id; // 0x24
         uint32_t sort_order; // 0x28
 
-        uintptr_t container_index; // LoneSpriteSystem
-
         void Serialize(Save *save);
         static ptr<Sprite> Deserialize(Load *load);
-        ~Sprite() {}
+        ~Sprite();
 
         static std::pair<int, Sprite *> SaveAllocate(uint8_t *in, uint32_t size);
-        static Sprite *Allocate(int sprite_id, const Point &pos, int player);
+        /// Allocates a new sprite. May fail and return nullptr.
+        /// As this causes the first frame of iscript animation to be executed,
+        /// it requires an Iscript::Context.
+        static ptr<Sprite> Allocate(Iscript::Context *ctx, int sprite_id, const Point &pos, int player);
+        /// Allocates a new sprite, using the generic sprite Iscript::Context for
+        /// runnig the first frame of an animation.
+        /// Compatibility hack for a bw hook. Use Allocate() or LoneSpriteSystem::AllocateLone()
+        /// instead.
+        static Sprite *AllocateWithBasicIscript(int sprite_id, const Point &pos, int player);
 
         Sprite *SpawnLoneSpriteAbove(int sprite_id);
         static Sprite *Spawn(Image *spawner, uint16_t sprite_id, const Point &pos, int elevation_level);
 
-        void SingleDelete();
         void Remove();
         static void DeleteAll();
 
@@ -69,7 +85,8 @@ class Sprite
         void SetDirection256(int direction);
         void SetFlipping(bool set);
 
-        bool IsHidden() const { return flags & 0x20; }
+        void Hide();
+        bool IsHidden() const { return flags & SpriteFlags::Hidden; }
 
         bool UpdateVisibilityPoint();
         void UpdateVisibilityArea();
@@ -85,6 +102,7 @@ class Sprite
 
         void AddMultipleOverlaySprites(int overlay_type, int count, int sprite_id, int base, bool flip);
         void AddDamageOverlay();
+        void AddOverlayAboveMain(Iscript::Context *ctx, int image_id, int x, int y, int direction);
 
         static void RemoveAllSelectionOverlays();
         void RemoveSelectionOverlays();
@@ -96,11 +114,12 @@ class Sprite
 #endif
         Sprite();
 
+        /// Initializes the sprite, returns false if unable and nothing was changed.
+        bool Initialize(Iscript::Context *ctx, int sprite_id, const Point &pos, int player);
+
         void AddToHlines();
-        static Sprite *RawAlloc();
 
         static void PackIds();
-        static Sprite *AllocateBase(int sprite_id, const Point &pos, int player);
 
         static uint32_t next_id;
         static uint32_t count;
@@ -110,94 +129,46 @@ class Sprite
         static uint32_t draw_order_limit;
 
     public:
-#include "constants/sprite.h"
-
-        class ProgressFrame_C : public Iterator<ProgressFrame_C, Iscript::Command>
-        {
-            public:
-                ProgressFrame_C() : anim() {}
-                ProgressFrame_C(const ProgressFrame_C &other) = delete;
-                ProgressFrame_C(ProgressFrame_C &&o) :
-                    cmds(move(o.cmds)),
-                    sprite(o.sprite),
-                    img(o.img),
-                    ctx(o.ctx),
-                    rng(o.rng),
-                    anim(o.anim) {}
-                ProgressFrame_C &operator=(ProgressFrame_C &&o)
-                {
-                    cmds = move(o.cmds);
-                    sprite = o.sprite;
-                    img = o.img;
-                    ctx = o.ctx;
-                    rng = o.rng;
-                    anim = o.anim;
-                    return *this;
-                }
-
-                ProgressFrame_C(Sprite *s, int a, const IscriptContext &ctx_, Rng *rng_) :
-                    sprite(s),
-                    ctx(ctx_),
-                    rng(rng_),
-                    anim(a)
-                {
-                    if (sprite != nullptr)
-                    {
-                        img = sprite->first_overlay;
-                        TakeCmds();
-                    }
-                }
-                Optional<Iscript::Command> next()
-                {
-                    if (sprite == nullptr || img == nullptr)
-                        return Optional<Iscript::Command>();
-                    auto cmd = cmds.next();
-                    while (!cmd || cmd.take().opcode == IscriptOpcode::End)
-                    {
-                        auto old = img;
-                        img = img->list.next;
-                        if (cmd && cmd.take().opcode == IscriptOpcode::End)
-                        {
-                            old->SingleDelete();
-                            if (!sprite->first_overlay)
-                                return Optional<Iscript::Command>(IscriptOpcode::End);
-                        }
-                        if (!img)
-                            return Optional<Iscript::Command>();
-
-                        TakeCmds();
-                        cmd = cmds.next();
-                    }
-                    return cmd;
-                }
-
-            private:
-                void TakeCmds()
-                {
-                    if (anim != -1)
-                        cmds = img->SetIscriptAnimation(anim, &ctx, rng);
-                    else
-                        cmds = img->ProgressFrame(&ctx, rng, false, nullptr);
-                }
-                Image::ProgressFrame_C cmds;
-                Sprite *sprite;
-                Image *img;
-                IscriptContext ctx;
-                Rng *rng;
-                int anim;
-        };
-        ProgressFrame_C ProgressFrame(const IscriptContext &ctx, Rng *rng) { return ProgressFrame_C(this, -1, ctx, rng); }
-        ProgressFrame_C SetIscriptAnimation(int anim, bool force, const IscriptContext &ctx, Rng *rng)
-        {
-            if (!force && flags & 0x80)
-                return ProgressFrame_C(nullptr, -1, ctx, rng);
-            return ProgressFrame_C(this, anim, ctx, rng);
+        void ProgressFrame(Iscript::Context *ctx) {
+            Image *next;
+            for (Image *img = first_overlay; img != nullptr; img = next) {
+                next = img->list.next;
+                img->ProgressFrame(ctx);
+            }
         }
-        ProgressFrame_C SetIscriptAnimation(int anim, bool force)
-        {
-            return SetIscriptAnimation(anim, force, IscriptContext(), main_rng);
+
+        void SetIscriptAnimation(Iscript::Context *ctx, int anim, bool force) {
+            if (!force && flags & SpriteFlags::Nobrkcodestart)
+                return;
+            for (Image *img : first_overlay) {
+                img->SetIscriptAnimation(ctx, anim);
+            }
         }
-        ProgressFrame_C IscriptToIdle(const IscriptContext &ctx, Rng *rng);
+
+        Iscript::CmdResult HandleIscriptCommand(Iscript::Context *ctx, Image *img,
+                                                Iscript::Script *script, const Iscript::Command &cmd) {
+            switch (cmd.opcode) {
+                case Iscript::Opcode::End:
+                    script->pos -= cmd.Size(); // Infloop on end if we couldn't delete it now
+                    if (ctx->can_delete) {
+                        img->SingleDelete();
+                        ctx->deleted = first_overlay == nullptr;
+                    }
+                    return Iscript::CmdResult::Stop;
+                break;
+                default:
+                    return img->HandleIscriptCommand(ctx, script, cmd);
+                break;
+            }
+        }
+
+        /// Sets the iscript animation and warns if any commands were not handled.
+        /// Meant to be used with lone sprites, as they really can't do any extra handling.
+        void SetIscriptAnimation_Lone(int anim, bool force, Rng *rng, const char *caller);
+
+        void IscriptToIdle(Iscript::Context *ctx);
+
+        #include "constants/sprite.h"
 };
 
 class LoneSpriteSystem
@@ -208,12 +179,13 @@ class LoneSpriteSystem
         Sprite *AllocateLone(int sprite_id, const Point &pos, int player);
         Sprite *AllocateFow(Sprite *base, int unit_id);
 
-        template <bool saving> Sprite *SaveConvertSpritePtr(Sprite *in);
         void Serialize(Save *save);
         void Deserialize(Load *load);
+        template <class Cb>
+        void MakeSaveIdMapping(Cb callback) const;
 
-        UnsortedPtrVector<Sprite> lone_sprites;
-        UnsortedPtrVector<Sprite> fow_sprites;
+        UnsortedList<ptr<Sprite>, 128> lone_sprites;
+        UnsortedList<ptr<Sprite>> fow_sprites;
 };
 
 extern LoneSpriteSystem *lone_sprites;

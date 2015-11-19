@@ -25,6 +25,18 @@ void __fastcall DrawWarpTexture_Flipped(int x, int y, GrpFrameHeader *frame_head
 void __fastcall DrawShadow_NonFlipped(int x, int y, GrpFrameHeader *frame_header, Rect32 *rect, void *unused);
 void __fastcall DrawShadow_Flipped(int x, int y, GrpFrameHeader *frame_header, Rect32 *rect, void *unused);
 
+namespace ImageFlags
+{
+    const int Redraw = 0x1;
+    const int Flipped = 0x2;
+    const int FreezeY = 0x4;
+    const int CanTurn = 0x8;
+    const int FullIscript = 0x10;
+    const int Clickable = 0x20;
+    const int Hidden = 0x40;
+    const int UseParentLo = 0x80;
+}
+
 #pragma pack(push)
 #pragma pack(1)
 
@@ -81,13 +93,13 @@ struct BlendPalette
 struct GrpSprite
 {
     uint16_t frame_count;
+    x16u width;
+    y16u height;
 };
 
 class Image
 {
     public:
-        static const size_t offset_of_allocated = 0x40;
-
         RevListEntry<Image, 0x0> list;
         uint16_t image_id;
         uint8_t drawfunc;
@@ -95,12 +107,12 @@ class Image
         uint16_t flags;
         int8_t x_off;
         int8_t y_off;
-        Iscript iscript;
+        Iscript::Script iscript;
         uint16_t frameset;
         uint16_t frame;
         Point map_position;
         Point screen_position;
-        uint16_t grpBounds[4];
+        Rect16 grp_bounds;
         GrpSprite *grp;
         void *drawfunc_param;
         void (__fastcall *Render)(int, int, GrpFrameHeader *, Rect32 *, void *);
@@ -109,25 +121,28 @@ class Image
 
         // ---------------
 
-        DummyListEntry<Image, offset_of_allocated> allocated; // 0x40
-
 #ifdef SYNC
         void *operator new(size_t size);
 #endif
+        /// Does no real initialization. Useful when bw is going to initialize it
         Image();
+        /// Initializes the image, but does not add it to parent's list.
+        /// Does not run the initial iscript animation either, as it can behave
+        /// differently based on where in parent's overlay list the image is.
+        /// The iscript animation should be ran afterwards with InitIscript().
+        Image(Sprite *parent, int image_id, int x, int y);
         ~Image() {}
-        static Image *Allocate();
 
-
+        /// Resets the image's iscript.
+        /// Returns false if image has invalid iscript.
+        bool InitIscript(Iscript::Context *ctx);
         void SingleDelete();
-        static void DeleteAll();
-        static void FreeMemory(int count);
 
         void SetFlipping(bool set);
-        bool IsFlipped() const { return flags & 0x2; }
-        bool IsHidden() const { return flags & 0x40; }
-        void FreezeY() { flags |= 0x4; }
-        void ThawY() { flags &= ~0x4; }
+        bool IsFlipped() const { return flags & ImageFlags::Flipped; }
+        bool IsHidden() const { return flags & ImageFlags::Hidden; }
+        void FreezeY() { flags |= ImageFlags::FreezeY; }
+        void ThawY() { flags &= ~ImageFlags::FreezeY; }
         void UpdateFrameToDirection();
         void Show();
         void Hide();
@@ -136,90 +151,25 @@ class Image
         void SetDrawFunc(int drawfunc, void *param);
         void MakeDetected();
 
-        bool IscriptCmd(const Iscript::Command &cmd, IscriptContext *ctx, Rng *rng);
-
-        class ProgressFrame_C : public Iterator<ProgressFrame_C, Iscript::Command>
+        /// Progresses image's animation by a frame
+        void ProgressFrame(Iscript::Context *ctx)
         {
-            typedef Iscript::GetCommands_C internal_iterator;
-            public:
-                Optional<Iscript::Command> next()
-                {
-                    if (!rng)
-                        return Optional<Iscript::Command>();
-                    while (true)
-                    {
-                        auto option = cmds.next();
-                        if (!option)
-                            return option;
-                        auto cmd = option.take();
-                        if (cmd.opcode == IscriptOpcode::Move)
-                        {
-                            auto speed = CalculateSpeedChange(ctx.unit, cmd.val * 256);
-                            if (out_speed)
-                                *out_speed = speed;
-                            if (!test_run)
-                                SetSpeed_Iscript(ctx.unit, speed);
-                        }
-                        else if (!test_run)
-                        {
-                            if (!ctx.img->IscriptCmd(cmd, &ctx, rng))
-                                return option;
-                        }
-                    }
-                }
-
-                ProgressFrame_C(IscriptContext *c, Rng *r, bool t, uint32_t *o) :
-                    ctx(*c),
-                    rng(r),
-                    test_run(t),
-                    out_speed(o),
-                    cmds(ctx.img->iscript.GetCommands(&ctx, rng)) {}
-
-                // Do nothing -constructor
-                ProgressFrame_C() :
-                    rng(nullptr),
-                    test_run(false),
-                    out_speed(nullptr),
-                    cmds(ctx.img->iscript.GetCommands(nullptr, nullptr)) {}
-
-                ProgressFrame_C(const ProgressFrame_C &other) = delete;
-                ProgressFrame_C(ProgressFrame_C &&o) :
-                    ctx(o.ctx),
-                    rng(o.rng),
-                    test_run(o.test_run),
-                    out_speed(o.out_speed),
-                    cmds(o.cmds)
-                {
-                    cmds.SetContext(&ctx);
-                }
-                ProgressFrame_C& operator=(ProgressFrame_C &&o)
-                {
-                    ctx = o.ctx;
-                    rng = o.rng;
-                    test_run = o.test_run;
-                    out_speed = o.out_speed;
-                    cmds = o.cmds;
-                    cmds.SetContext(&ctx);
-                    return *this;
-                }
-
-            private:
-                IscriptContext ctx;
-                Rng *rng;
-                bool test_run;
-                uint32_t *out_speed;
-                Iscript::GetCommands_C cmds;
-        };
-        ProgressFrame_C ProgressFrame();
-        ProgressFrame_C ProgressFrame(IscriptContext *ctx, Rng *rng, bool test_run, uint32_t *out_speed)
-        {
-            DrawFunc_ProgressFrame(ctx, rng);
-            if (iscript.wait-- != 0)
-                return ProgressFrame_C();
-            ctx->img = this;
-            return ProgressFrame_C(ctx, rng, test_run, out_speed);
+            DrawFunc_ProgressFrame(ctx);
+            iscript.ProgressFrame(ctx, this);
         }
-        ProgressFrame_C SetIscriptAnimation(int anim, IscriptContext *ctx, Rng *rng);
+
+        /// Handles an iscript command, returning false if the command could not be handled.
+        /// Generally just called from a Sprite::HandleIscriptCommand.
+        Iscript::CmdResult HandleIscriptCommand(Iscript::Context *ctx, Iscript::Script *script,
+                                                const Iscript::Command &cmd);
+        /// Like HandleIscriptCommand, but does not modify the image
+        /// (Rng, ctx and script may be modified though).
+        /// Useful for iscript speed prediction.
+        Iscript::CmdResult ConstIscriptCommand(Iscript::Context *ctx, Iscript::Script *script,
+                                               const Iscript::Command &cmd) const;
+
+        /// Changes the iscript animation and runs the script for a frame.
+        void SetIscriptAnimation(Iscript::Context *ctx, int anim);
 
 #include "constants/image.h"
         enum DrawFunc
@@ -238,22 +188,29 @@ class Image
             // Bad: constants/image.h defines WarpTexture
             UseWarpTexture = 0xc,
             SelectionCircle = 0xd,
+            OverrideColor = 0xe, // Flag
             Hallucination = 0x10,
             WarpFlash = 0x11
         };
 
         template <bool saving> void SaveConvert();
 
+        /// Note: The first call to the function will permamently load arr\images.tbl
+        /// using some memory.
+        /// The global tbl is loaded in a thread-safe way.
+        std::string DebugStr() const;
+
     private:
-        void DrawFunc_ProgressFrame(IscriptContext *ctx, Rng *rng);
+        // Returns iscript animation which *must* be switched to, or -1 if none.
+        void DrawFunc_ProgressFrame(Iscript::Context *ctx);
         void SaveRestore();
         void UpdateSpecialOverlayPos();
-        Image *Iscript_AddOverlay(const IscriptContext *ctx, int image_id, int x, int y, bool above);
+        Image *Iscript_AddOverlay(Iscript::Context *ctx, int image_id, int x, int y, bool above);
+
+        /// Sets direction (and flipping) to the one of parent->main_image
+        void FollowMainImage();
 };
 
-extern DummyListHead<Image, Image::offset_of_allocated> first_allocated_image;
-
-static_assert(Image::offset_of_allocated == offsetof(Image, allocated), "Image::allocated offset");
 static_assert(sizeof(CycleStruct) == 0x10, "sizeof(CycleStruct)");
 
 #pragma pack(pop)

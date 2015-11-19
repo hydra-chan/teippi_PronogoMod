@@ -54,17 +54,6 @@ void __stdcall AddMultipleOverlaySprites(int overlay_type, int count, int sprite
     return sprite->AddMultipleOverlaySprites(overlay_type, count - base + 1, sprite_id, base, flip);
 }
 
-void ProgressSpriteFrame()
-{
-    REG_ESI(Sprite *, sprite);
-    IscriptContext ctx;
-    ctx.bullet = *bw::active_iscript_bullet;
-    ctx.unit = *bw::active_iscript_unit;
-    auto cmds = sprite->ProgressFrame(ctx, main_rng);
-    if (!Empty(cmds))
-        Warning("ProgressSpriteFrame hook did not handle all iscript commands");
-}
-
 void LoadUnit()
 {
     REG_EAX(Unit *, transport);
@@ -218,7 +207,7 @@ void RemoveFromPosSearch()
 
 Image *AllocateImage()
 {
-    return Image::Allocate();
+    return new Image;
 }
 
 void DeleteImage()
@@ -238,7 +227,7 @@ Sprite * __stdcall CreateSprite(int sprite_id, int x, int player)
 {
     REG_EDI(int, y);
     y &= 0xffff;
-    return Sprite::Allocate(sprite_id, Point(x, y), player);
+    return Sprite::AllocateWithBasicIscript(sprite_id, Point(x, y), player);
 }
 
 Sprite * __stdcall CreateLoneSprite(int sprite_id, int x, int player)
@@ -256,7 +245,8 @@ Sprite * __stdcall CreateFowSprite(int unit_id, Sprite *base)
 void DeleteSprite()
 {
     REG_EDI(Sprite *, sprite);
-    sprite->SingleDelete();
+    sprite->Remove();
+    delete sprite;
 }
 
 Bullet * __stdcall CreateBullet(int x, int y, int player, int direction)
@@ -394,17 +384,87 @@ void InitPosSearch()
     unit_search->Init();
 }
 
+void ProgressSpriteFrame()
+{
+    REG_ESI(Sprite *, sprite);
+    // Shouldn't be hooked from elsewhere
+    Assert(*bw::active_iscript_unit != nullptr);
+    (*bw::active_iscript_unit)->ProgressIscript("ProgressSpriteFrame hook", nullptr);
+}
+
+class SimpleIscriptContext : public Iscript::Context
+{
+    public:
+        constexpr SimpleIscriptContext(Rng *rng) : Iscript::Context(rng, false) { }
+
+        virtual Iscript::CmdResult HandleCommand(Image *img, Iscript::Script *script,
+                                                 const Iscript::Command &cmd) override
+        {
+            auto result = img->HandleIscriptCommand(this, script, cmd);
+            if (result == Iscript::CmdResult::NotHandled)
+            {
+                Warning("Could not handle iscript command %s for image %s from SetIscriptAnimation hook",
+                        cmd.DebugStr().c_str(), img->DebugStr().c_str());
+            }
+            return result;
+        }
+};
+
 void __stdcall SetIscriptAnimation(int anim)
 {
     REG_ECX(Image *, img);
     anim &= 0xff;
-    IscriptContext ctx;
-    ctx.unit = *bw::active_iscript_unit;
-    ctx.bullet = *bw::active_iscript_bullet;
-    ctx.iscript = *bw::iscript;
-    auto cmds = img->SetIscriptAnimation(anim, &ctx, main_rng);
-    if (!Empty(cmds))
-        Warning("Hook of SetIscriptAnimation did not handle all iscript commands for image %x (anim %x)", img->image_id, anim);
+    if (*bw::active_iscript_unit != nullptr)
+        (*bw::active_iscript_unit)->SetIscriptAnimationForImage(img, anim);
+    else
+    {
+        // This is unable to handle any unit-specific commands
+        SimpleIscriptContext ctx(MainRng());
+        img->SetIscriptAnimation(&ctx, anim);
+    }
+}
+
+class MovementIscriptContext : public Iscript::Context
+{
+    public:
+        constexpr MovementIscriptContext(Unit *unit, uint32_t *out_speed, Rng *rng) :
+            Iscript::Context(rng, false), unit(unit), out_speed(out_speed) { }
+
+        Unit * const unit;
+        uint32_t *out_speed;
+
+        virtual Iscript::CmdResult HandleCommand(Image *img, Iscript::Script *script,
+                                                 const Iscript::Command &cmd) override
+        {
+            if (cmd.opcode == Iscript::Opcode::Move)
+            {
+                auto speed = CalculateSpeedChange(unit, cmd.val * 256);
+                *out_speed = speed;
+            }
+            auto result = img->ConstIscriptCommand(this, script, cmd);
+            if (result == Iscript::CmdResult::NotHandled)
+                return Iscript::CmdResult::Handled;
+            return result;
+        }
+};
+
+static void __stdcall ProgressIscriptFrame_Hook(Iscript::Script *script, int test_run, uint32_t *out_speed)
+{
+    REG_ECX(Image *, image);
+    // Shouldn't be hooked from elsewhere
+    Assert(*bw::active_iscript_unit != nullptr);
+    if (test_run)
+    {
+        Assert(out_speed != nullptr);
+        MovementIscriptContext ctx(*bw::active_iscript_unit, out_speed, MainRng());
+        script->ProgressFrame(&ctx, image);
+    }
+    else
+    {
+        // What to do? Could try determining if we are using unit, bullet, sprite or what,
+        // but this shouldn't be called anyways
+        Warning("ProgressIscriptFrame hooked");
+    }
 }
 
 int __stdcall Order_AttackMove_ReactToAttack(uint8_t order)
@@ -916,6 +976,7 @@ void RemoveLimits(Common::PatchContext *patch)
     patch->JumpHook(bw::CancelZergBuilding, CancelZergBuilding);
 
     patch->JumpHook(bw::SetIscriptAnimation, SetIscriptAnimation);
+    patch->JumpHook(bw::ProgressIscriptFrame, ProgressIscriptFrame_Hook);
 
     patch->JumpHook(bw::Order_AttackMove_ReactToAttack, Order_AttackMove_ReactToAttack);
     patch->JumpHook(bw::Order_AttackMove_TryPickTarget, Order_AttackMove_TryPickTarget);
@@ -956,7 +1017,6 @@ void RemoveLimits(Common::PatchContext *patch)
     patch->JumpHook(bw::StatusScreenButton, StatusScreenButton_Hook);
     patch->JumpHook(bw::LoadReplayMapDirEntry, LoadReplayMapDirEntry);
     patch->JumpHook(bw::LoadReplayData, LoadReplayData_Hook);
-    patch->JumpHook(bw::ExtractNextReplayFrame, ExtractNextReplayFrame);
 
     patch->JumpHook(bw::DoNextQueuedOrder, DoNextQueuedOrder);
     patch->JumpHook(bw::ProcessLobbyCommands, ProcessLobbyCommands);

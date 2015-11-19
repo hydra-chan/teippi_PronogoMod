@@ -171,7 +171,7 @@ void SendChangeSelectionCommand(int count, Unit **units)
     }
 }
 
-void Command_SelectionRemove(uint8_t *buf)
+void Command_SelectionRemove(const uint8_t *buf)
 {
     if (buf[1] != 0)
     {
@@ -189,21 +189,19 @@ void Command_SelectionRemove(uint8_t *buf)
             Unit *unit = Unit::FindById(unit_ids[i]);
             if (!unit)
                 continue;
-            Sprite *sprite = unit->sprite;
+            Sprite *sprite = unit->sprite.get();
             if (unit->IsDying() || sprite->IsHidden() || unit->player != player)
                 continue;
 
-            if (HasTeamSelection(player) && (sprite->flags & 0x6))
+            if (HasTeamSelection(player))
             {
-                // ???
-                int flag = sprite->flags;
-                int flag2 = flag >> 1;
-                if (flag2 & 3)
+                int ally_selections = (sprite->flags & SpriteFlags::DashedSelectionMask) >> 1;
+                if (ally_selections != 0)
                 {
-                    flag2--;
-                    flag2 = flag2 << 1;
-                    sprite->flags = ((flag2 ^ flag) & 6) ^ flag;
-                    if (sprite->flags & 6)
+                    ally_selections -= 1;
+                    sprite->flags &= ~SpriteFlags::DashedSelectionMask;
+                    sprite->flags |= (ally_selections << 1);
+                    if (ally_selections == 0)
                         RemoveDashedSelectionCircle(sprite);
                 }
             }
@@ -211,11 +209,10 @@ void Command_SelectionRemove(uint8_t *buf)
         }
         if (remaining > 1)
             AddToRecentSelections();
-
     }
 }
 
-void Command_SelectionAdd(uint8_t *buf)
+void Command_SelectionAdd(const uint8_t *buf)
 {
     if (buf[1] != 0)
     {
@@ -265,7 +262,7 @@ void Command_SelectionAdd(uint8_t *buf)
     }
 }
 
-void Command_Select(uint8_t *buf)
+void Command_Select(const uint8_t *buf)
 {
     if (buf[1] != 0)
     {
@@ -310,13 +307,12 @@ void CenterOnSelectionGroup(uint8_t group_id)
     for (unsigned i = 0; i < count; i++)
     {
         Unit *unit = group[i];
-        Sprite *sprite = unit->sprite;
-        if ((unit->order == Order::Die && unit->order_state == 1) || sprite->IsHidden())
+        if (unit->IsDying() || unit->sprite->IsHidden())
             continue;
         if (IsMultiSelectable(unit) || count == 1)
         {
-            x += sprite->position.x;
-            y += sprite->position.y;
+            x += unit->sprite->position.x;
+            y += unit->sprite->position.y;
         }
     }
 
@@ -341,9 +337,8 @@ void SelectHotkeyGroup(uint8_t group_id)
     for (unsigned i = 0; i < count; i++)
     {
         Unit *unit = group[i];
-        Sprite *sprite = unit->sprite;
-        if ((unit->order == Order::Die && unit->order_state == 1) ||
-            sprite->IsHidden() || unit->player != *bw::command_user) // Todo: Why sc compare command_user instead of self_player_id2 o.o
+        // Todo: Why sc compare command_user instead of self_player_id2 o.o
+        if (unit->IsDying() || unit->sprite->IsHidden() || unit->player != *bw::command_user)
         {
             continue;
         }
@@ -501,7 +496,7 @@ int TrySelectRecentHotkeyGroup(Unit *unit)
     return 0;
 }
 
-int SelectCommandLength(uint8_t *data)
+int SelectCommandLength(const uint8_t *data)
 {
     return *(uint32_t *)(data + 2) * 4 + 6;
 }

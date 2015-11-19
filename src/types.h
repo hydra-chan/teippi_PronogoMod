@@ -19,7 +19,7 @@ using xuint = Common::xint<unsigned int>;
 using yuint = Common::yint<unsigned int>;
 using Common::Array;
 
-using Common::ref;
+using Common::reference;
 using Common::ptr;
 using Common::vector;
 using Common::Iterator;
@@ -29,7 +29,8 @@ using std::tuple;
 using std::make_tuple;
 using std::move;
 using std::make_unique;
-
+using std::ref;
+using std::cref;
 
 #ifdef CONSOLE
 const bool UseConsole = true;
@@ -62,12 +63,13 @@ const unsigned int AllPlayers = 0x11;
 
 class Unit;
 class Sprite;
+class LoneSpriteSystem;
 class Image;
-class Iscript;
 class Bullet;
 class BulletSystem;
 class DamagedUnit;
 class Flingy;
+class Entity;
 class Tbl;
 class Path;
 class Order;
@@ -111,6 +113,7 @@ struct CycleStruct;
 template <class Type, unsigned size = 15> class UnitList;
 template <class C, unsigned offset> class RevListHead;
 template <class C, unsigned offset> class ListHead;
+template <class SaveLoad> class SaveBase;
 
 namespace Common
 {
@@ -140,5 +143,13 @@ namespace Pathing
     struct Region;
     struct PathingSystem;
 }
+
+namespace Iscript
+{
+    class Script;
+}
+class UnitIscriptContext;
+class BulletIscriptContext;
+
 #endif // TYPES_H
 

@@ -32,12 +32,10 @@ void Unit::Order_NukeTrack()
 {
     if (order_state == 0)
     {
-        auto cmds = sprite->SetIscriptAnimation(IscriptAnim::Special1, true);
-        if (!Empty(cmds))
-            Warning("Unit::Order_NukeTrack did not handle all iscript commands for unit %x while setting anim to special 1", unit_id);
-        building.ghost.nukedot = lone_sprites->AllocateLone(Sprite::NukeDot, related->order_target_pos, player);
-        building.ghost.nukedot->elevation = sprite->elevation + 1;
-        building.ghost.nukedot->UpdateVisibilityPoint();
+        SetIscriptAnimation(Iscript::Animation::Special1, true, "Order_NukeTrack state 0", nullptr);
+        ghost.nukedot = lone_sprites->AllocateLone(Sprite::NukeDot, related->order_target_pos, player);
+        ghost.nukedot->elevation = sprite->elevation + 1;
+        ghost.nukedot->UpdateVisibilityPoint();
         order_state = 6;
     }
     else if (order_state == 6)
@@ -48,13 +46,9 @@ void Unit::Order_NukeTrack()
             AppendOrderTargetingGround(this, units_dat_return_to_idle_order[unit_id], 0);
         DoNextQueuedOrderIfAble(this);
         SetButtons(unit_id);
-        auto cmds = sprite->SetIscriptAnimation(IscriptAnim::Idle, true);
-        if (!Empty(cmds))
-            Warning("Unit::Order_NukeTrack did not handle all iscript commands for unit %x while setting anim to idle", unit_id);
-        cmds = building.ghost.nukedot->SetIscriptAnimation(IscriptAnim::Death, true);
-        if (!Empty(cmds))
-            Warning("Unit::Order_NukeTrack did not handle all iscript commands for nukedot (%x) while setting anim to death", building.ghost.nukedot->sprite_id);
-        building.ghost.nukedot = nullptr;
+        SetIscriptAnimation(Iscript::Animation::Idle, true, "Order_NukeTrack state 6", nullptr);
+        ghost.nukedot->SetIscriptAnimation_Lone(Iscript::Animation::Death, true, MainRng(), "Unit::Order_NukeTrack");
+        ghost.nukedot = nullptr;
         Ai_ReturnToNearestBaseForced(this);
     }
 }
@@ -83,7 +77,7 @@ void Unit::Order_NukeGround()
         Unit *silo = nullptr;
         for (Unit *unit : bw::first_player_unit[player])
         {
-            if (unit->unit_id == NuclearSilo && unit->building.silo.has_nuke)
+            if (unit->unit_id == NuclearSilo && unit->silo.has_nuke)
             {
                 silo = unit;
                 break;
@@ -94,9 +88,9 @@ void Unit::Order_NukeGround()
             OrderDone();
             return;
         }
-        Unit *nuke = silo->building.silo.nuke;
-        silo->building.silo.nuke = nullptr;
-        silo->building.silo.has_nuke = 0;
+        Unit *nuke = silo->silo.nuke;
+        silo->silo.nuke = nullptr;
+        silo->silo.has_nuke = 0;
         PlaySound(Sound::NukeLaser, this, 1, 0);
         IssueOrderTargetingGround(nuke, Order::NukeLaunch, order_target_pos.x, order_target_pos.y);
         related = nuke;
@@ -145,7 +139,7 @@ void Unit::Order_NukeLaunch(ProgressUnitResults *results)
         case 3:
             if (flingy_flags & 0x2)
                 return;
-            SetIscriptAnimation_NoHandling(IscriptAnim::WarpIn, true, "Order_NukeLaunch state 3", results);
+            SetIscriptAnimation(Iscript::Animation::WarpIn, true, "Order_NukeLaunch state 3", results);
             order_state = 4;
         break;
         case 4:
@@ -168,7 +162,7 @@ void Unit::Order_NukeLaunch(ProgressUnitResults *results)
             if (!IsPointInArea(this, 10, move_target.x, move_target.y))
                 return;
             target = this;
-            SetIscriptAnimation_NoHandling(IscriptAnim::Special1, true, "Order_NukeLaunch state 5", results);
+            SetIscriptAnimation(Iscript::Animation::Special1, true, "Order_NukeLaunch state 5", results);
             order_state = 6;
         break;
         case 6:
