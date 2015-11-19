@@ -761,6 +761,7 @@ void Unit::ProgressTimers(ProgressUnitResults *results)
         air_cooldown--;
     if (spell_cooldown)
         spell_cooldown--;
+	utm.UpdateTimers(results); // Bunny - UTM Unit Timers Manager
     if (HasShields())
     {
         int32_t max_shields = GetMaxShields() * 256;

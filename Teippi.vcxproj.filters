@@ -60,6 +60,9 @@
     <ClCompile Include="src\console\genericconsole.cpp">
       <Filter>Sources\console</Filter>
     </ClCompile>
+    <ClCompile Include="src\custom_timers.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
     <ClCompile Include="src\datastream.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
@@ -222,6 +225,9 @@
     <ClInclude Include="src\common\optional.h">
       <Filter>Headers\common</Filter>
     </ClInclude>
+    <ClInclude Include="src\common\unsorted_vector.h">
+      <Filter>Headers\common</Filter>
+    </ClInclude>
     <ClInclude Include="src\common\vector.h">
       <Filter>Headers\common</Filter>
     </ClInclude>
@@ -275,6 +281,9 @@
     </ClInclude>
     <ClInclude Include="src\constants\upgrade.h">
       <Filter>Headers\constants</Filter>
+    </ClInclude>
+    <ClInclude Include="src\custom_timers.h">
+      <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="src\damage_calculation.h">
       <Filter>Headers</Filter>
@@ -438,235 +447,7 @@
     <ClInclude Include="src\yms.h">
       <Filter>Headers</Filter>
     </ClInclude>
-<<<<<<< HEAD
-    <ClInclude Include="src\console\assert.h">
-      <Filter>Headers\console</Filter>
-    </ClInclude>
-    <ClInclude Include="src\console\cmdargs.h">
-      <Filter>Headers\console</Filter>
-    </ClInclude>
-    <ClInclude Include="src\console\console.h">
-      <Filter>Headers\console</Filter>
-    </ClInclude>
-    <ClInclude Include="src\console\font.h">
-      <Filter>Headers\console</Filter>
-    </ClInclude>
-    <ClInclude Include="src\console\genericconsole.h">
-      <Filter>Headers\console</Filter>
-    </ClInclude>
-    <ClInclude Include="src\console\surface.h">
-      <Filter>Headers\console</Filter>
-    </ClInclude>
-    <ClInclude Include="src\console\types.h">
-      <Filter>Headers\console</Filter>
-    </ClInclude>
-    <ClInclude Include="src\console\windows_wrap.h">
-      <Filter>Headers\console</Filter>
-    </ClInclude>
-    <ClInclude Include="src\common\assert.h">
-      <Filter>Headers\common</Filter>
-    </ClInclude>
-    <ClInclude Include="src\common\claimable.h">
-      <Filter>Headers\common</Filter>
-    </ClInclude>
-    <ClInclude Include="src\common\iter.h">
-      <Filter>Headers\common</Filter>
-    </ClInclude>
-    <ClInclude Include="src\common\ll-deque.h">
-      <Filter>Headers\common</Filter>
-    </ClInclude>
-    <ClInclude Include="src\common\log_freeze.h">
-      <Filter>Headers\common</Filter>
-    </ClInclude>
-    <ClInclude Include="src\common\optional.h">
-      <Filter>Headers\common</Filter>
-    </ClInclude>
-    <ClInclude Include="src\common\unsorted_vector.h">
-      <Filter>Headers\common</Filter>
-    </ClInclude>
-    <ClInclude Include="src\common\vector.h">
-      <Filter>Headers\common</Filter>
-    </ClInclude>
-    <ClInclude Include="src\constants\image.h">
-      <Filter>Headers\constants</Filter>
-    </ClInclude>
-    <ClInclude Include="src\constants\iscript.h">
-      <Filter>Headers\constants</Filter>
-    </ClInclude>
-    <ClInclude Include="src\constants\order.h">
-      <Filter>Headers\constants</Filter>
-    </ClInclude>
-    <ClInclude Include="src\constants\sound.h">
-      <Filter>Headers\constants</Filter>
-    </ClInclude>
-    <ClInclude Include="src\constants\sprite.h">
-      <Filter>Headers\constants</Filter>
-    </ClInclude>
-    <ClInclude Include="src\constants\string.h">
-      <Filter>Headers\constants</Filter>
-    </ClInclude>
-    <ClInclude Include="src\constants\tech.h">
-      <Filter>Headers\constants</Filter>
-    </ClInclude>
-    <ClInclude Include="src\constants\unit.h">
-      <Filter>Headers\constants</Filter>
-    </ClInclude>
-    <ClInclude Include="src\constants\upgrade.h">
-      <Filter>Headers\constants</Filter>
-    </ClInclude>
-    <ClInclude Include="src\ai_hit_reactions.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="src\custom_timers.h">
-      <Filter>Sources</Filter>
-    </ClInclude>
-    <ClInclude Include="src\damage_calculation.h">
-      <Filter>Sources</Filter>
-    </ClInclude>
-    <ClInclude Include="src\offsets_hooks.h">
-      <Filter>Sources</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="src\ai.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\building.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\bullet.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\bunker.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\commands.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\datastream.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\dialog.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\draw.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\flingy.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\game.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\image.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\init.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\iscript.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\limits.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\lofile.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\log.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\mainpatch.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\memory.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\mpqdraft.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\nuke.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\order.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\patchmanager.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\pathing.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\perfclock.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\player.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\replay.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\save.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\scconsole.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\scthread.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\selection.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\sprite.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\strings.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\targeting.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tech.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\test_game.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\text.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\triggers.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\unit.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\unit_ai.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\unit_movement.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\unitsearch.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\unitsearch_cache.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\upgrade.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\warn.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\x86.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\yms.cpp">
-=======
     <ClInclude Include="src\possearch.hpp">
->>>>>>> refs/remotes/neivv/master
       <Filter>Sources</Filter>
     </ClInclude>
     <ClInclude Include="src\unitsearch.hpp">
@@ -674,14 +455,6 @@
     </ClInclude>
     <ClInclude Include="src\unitsearch_cache.hpp">
       <Filter>Sources</Filter>
-<<<<<<< HEAD
-    </ClCompile>
-    <ClCompile Include="src\custom_timers.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-=======
     </ClInclude>
     <Text Include="src\func\nuottei.txt">
       <Filter>Sources\func</Filter>
@@ -689,7 +462,6 @@
     <None Include="src\func\functonuot.py">
       <Filter>Sources\func</Filter>
     </None>
->>>>>>> refs/remotes/neivv/master
     <None Include="src\func\genfuncs.py">
       <Filter>Sources\func</Filter>
     </None>

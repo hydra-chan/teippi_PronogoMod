@@ -171,23 +171,6 @@ def build(bld):
 
     cxxflags += cflags
 
-<<<<<<< HEAD
-    src = ['unit.cpp', 'commands.cpp', 'ai.cpp', 'bullet.cpp', 'bunker.cpp', 'datastream.cpp',
-            'dialog.cpp', 'flingy.cpp', 'game.cpp', 'image.cpp', 'iscript.cpp', 'limits.cpp',
-            'lofile.cpp', 'log.cpp', 'mainpatch.cpp', 'memory.cpp', 'mpqdraft.cpp', 'nuke.cpp',
-            'order.cpp', 'pathing.cpp', 'perfclock.cpp', 'draw.cpp',
-            'player.cpp', 'unitsearch.cpp', 'unitsearch_cache.cpp', 'scthread.cpp',
-            'selection.cpp', 'sprite.cpp', 'strings.cpp', 'targeting.cpp', 'tech.cpp', 'text.cpp',
-            'triggers.cpp', 'unit_ai.cpp', 'unit_movement.cpp', 'upgrade.cpp', 'x86.cpp', 'yms.cpp',
-            'replay.cpp', 'warn.cpp', 'building.cpp', 'console/assert.cpp', 'init.cpp', 'bwlauncher.cpp',
-            'ai_hit_reactions.cpp', 'custom_timers.cpp'] # Bunny
-    if console:
-        src += ['scconsole.cpp', 'console/cmdargs.cpp', 'console/console.cpp',
-                'console/font.cpp', 'console/genericconsole.cpp']
-    if debug:
-        src += ['test_game.cpp']
-=======
->>>>>>> refs/remotes/neivv/master
     src_with_exceptions = ['save.cpp', 'patchmanager.cpp']
 
     src = bld.path.ant_glob('src/*.cpp')

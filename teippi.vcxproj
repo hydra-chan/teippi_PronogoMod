@@ -23,6 +23,7 @@
     <ClCompile Include="src\console\console.cpp" />
     <ClCompile Include="src\console\font.cpp" />
     <ClCompile Include="src\console\genericconsole.cpp" />
+    <ClCompile Include="src\custom_timers.cpp" />
     <ClCompile Include="src\datastream.cpp" />
     <ClCompile Include="src\dialog.cpp" />
     <ClCompile Include="src\draw.cpp" />
@@ -77,6 +78,7 @@
     <ClInclude Include="src\common\ll-deque.h" />
     <ClInclude Include="src\common\log_freeze.h" />
     <ClInclude Include="src\common\optional.h" />
+    <ClInclude Include="src\common\unsorted_vector.h" />
     <ClInclude Include="src\common\vector.h" />
     <ClInclude Include="src\console\assert.h" />
     <ClInclude Include="src\console\cmdargs.h" />
@@ -95,10 +97,7 @@
     <ClInclude Include="src\constants\tech.h" />
     <ClInclude Include="src\constants\unit.h" />
     <ClInclude Include="src\constants\upgrade.h" />
-<<<<<<< HEAD
     <ClInclude Include="src\custom_timers.h" />
-=======
->>>>>>> refs/remotes/neivv/master
     <ClInclude Include="src\damage_calculation.h" />
     <ClInclude Include="src\datastream.h" />
     <ClInclude Include="src\dialog.h" />
@@ -153,72 +152,11 @@
     <ClInclude Include="src\warn.h" />
     <ClInclude Include="src\x86.h" />
     <ClInclude Include="src\yms.h" />
-<<<<<<< HEAD
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="src\ai.cpp" />
-    <ClCompile Include="src\ai_hit_reactions.cpp" />
-    <ClCompile Include="src\building.cpp" />
-    <ClCompile Include="src\bullet.cpp" />
-    <ClCompile Include="src\bunker.cpp" />
-    <ClCompile Include="src\bwlauncher.cpp" />
-    <ClCompile Include="src\commands.cpp" />
-    <ClCompile Include="src\console\assert.cpp" />
-    <ClCompile Include="src\console\cmdargs.cpp" />
-    <ClCompile Include="src\console\console.cpp" />
-    <ClCompile Include="src\console\font.cpp" />
-    <ClCompile Include="src\console\genericconsole.cpp" />
-    <ClCompile Include="src\custom_timers.cpp" />
-    <ClCompile Include="src\datastream.cpp" />
-    <ClCompile Include="src\dialog.cpp" />
-    <ClCompile Include="src\draw.cpp" />
-    <ClCompile Include="src\flingy.cpp" />
-    <ClCompile Include="src\game.cpp" />
-    <ClCompile Include="src\image.cpp" />
-    <ClCompile Include="src\init.cpp" />
-    <ClCompile Include="src\iscript.cpp" />
-    <ClCompile Include="src\limits.cpp" />
-    <ClCompile Include="src\lofile.cpp" />
-    <ClCompile Include="src\log.cpp" />
-    <ClCompile Include="src\mainpatch.cpp" />
-    <ClCompile Include="src\memory.cpp" />
-    <ClCompile Include="src\mpqdraft.cpp" />
-    <ClCompile Include="src\nuke.cpp" />
-    <ClCompile Include="src\order.cpp" />
-    <ClCompile Include="src\patchmanager.cpp" />
-    <ClCompile Include="src\pathing.cpp" />
-    <ClCompile Include="src\perfclock.cpp" />
-    <ClCompile Include="src\player.cpp" />
-    <ClCompile Include="src\replay.cpp" />
-    <ClCompile Include="src\save.cpp" />
-    <ClCompile Include="src\scconsole.cpp" />
-    <ClCompile Include="src\scthread.cpp" />
-    <ClCompile Include="src\selection.cpp" />
-    <ClCompile Include="src\sprite.cpp" />
-    <ClCompile Include="src\strings.cpp" />
-    <ClCompile Include="src\targeting.cpp" />
-    <ClCompile Include="src\tech.cpp" />
-    <ClCompile Include="src\test_game.cpp" />
-    <ClCompile Include="src\text.cpp" />
-    <ClCompile Include="src\triggers.cpp" />
-    <ClCompile Include="src\unit.cpp" />
-    <ClCompile Include="src\unitsearch.cpp" />
-    <ClCompile Include="src\unitsearch_cache.cpp" />
-    <ClCompile Include="src\unit_ai.cpp" />
-    <ClCompile Include="src\unit_movement.cpp" />
-    <ClCompile Include="src\upgrade.cpp" />
-    <ClCompile Include="src\warn.cpp" />
-    <ClCompile Include="src\x86.cpp" />
-    <ClCompile Include="src\yms.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-=======
     <ClInclude Include="src\possearch.hpp" />
     <ClInclude Include="src\unitsearch.hpp" />
     <ClInclude Include="src\unitsearch_cache.hpp" />
     <Text Include="src\func\nuottei.txt" />
     <None Include="src\func\functonuot.py" />
->>>>>>> refs/remotes/neivv/master
     <None Include="src\func\genfuncs.py" />
     <None Include="wscript" />
   </ItemGroup>
@@ -252,17 +190,6 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-<<<<<<< HEAD
-    <NMakeBuildCommandLine>py -3 waf</NMakeBuildCommandLine>
-    <NMakeCleanCommandLine>py -3 waf clean</NMakeCleanCommandLine>
-    <NMakeReBuildCommandLine>py -3 waf clean build</NMakeReBuildCommandLine>
-    <NMakePreprocessorDefinitions>WIN32;_DEBUG;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <NMakeBuildCommandLine>py -3 waf</NMakeBuildCommandLine>
-    <NMakeCleanCommandLine>py -3 waf clean</NMakeCleanCommandLine>
-    <NMakeReBuildCommandLine>py -3 waf clean build</NMakeReBuildCommandLine>
-=======
     <NMakeBuildCommandLine>py -3 waf --debug</NMakeBuildCommandLine>
     <NMakeCleanCommandLine>py -3 waf clean</NMakeCleanCommandLine>
     <NMakeReBuildCommandLine>py -3 waf clean build --debug</NMakeReBuildCommandLine>
@@ -272,7 +199,6 @@
     <NMakeBuildCommandLine>py -3 waf --nodebug</NMakeBuildCommandLine>
     <NMakeCleanCommandLine>py -3 waf clean</NMakeCleanCommandLine>
     <NMakeReBuildCommandLine>py -3 waf clean build --nodebug</NMakeReBuildCommandLine>
->>>>>>> refs/remotes/neivv/master
     <NMakePreprocessorDefinitions>WIN32;NDEBUG;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
   </PropertyGroup>
   <ItemDefinitionGroup>

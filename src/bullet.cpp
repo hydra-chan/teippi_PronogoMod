@@ -1224,6 +1224,7 @@ Optional<SpellCast> Bullet::DoMissileDmg(ProgressBulletBufs *bufs)
                 Maelstrom(parent, order_target_pos);
         break;
         case 0x17: // Unknown (Crash)
+			// Pronogo
 			// Intended for Pronogo's Poison effect.
 			if (target && ~flags & 0x1) // Miss
 			{
