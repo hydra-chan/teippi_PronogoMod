@@ -1020,7 +1020,7 @@ void Unit::ProgressFrames_Invisible()
 
 void Unit::UpdatePoweredStates()
 {
-    if (!*bw::pylon_refresh)
+	if (!*bw::pylon_refresh)
         return;
     for (Unit *unit : *bw::first_active_unit)
     {
@@ -1053,11 +1053,11 @@ void Unit::UpdatePoweredStates()
 				if (unit->flags & UnitStatus::Completed)
 				{
 					unit->SetIscriptAnimation(Iscript::Animation::Disable, true, "UpdatePoweredStates disable", nullptr);
-					// Pronogo -- non-neutral and unpowered means death
-					auto unitsPlayer = unit->player;
-					auto unitsPlayerType = bw::players[unitsPlayer].type;
-					if (unitsPlayer < 9 && (unitsPlayerType >= 0x1 && unitsPlayerType <= 0x4)) unit->Kill(nullptr);
 				}
+				// Pronogo -- non-neutral and unpowered means death
+				auto unitsPlayer = unit->player;
+				auto unitsPlayerType = bw::players[unitsPlayer].type;
+				if (unitsPlayer < 9 && (unitsPlayerType >= 0x1 && unitsPlayerType <= 0x4)) unit->Kill(nullptr);
             }
         }
     }
