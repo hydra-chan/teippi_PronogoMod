@@ -1224,25 +1224,33 @@ Optional<SpellCast> Bullet::DoMissileDmg(ProgressBulletBufs *bufs)
                 Maelstrom(parent, order_target_pos);
         break;
         case 0x17: // Unknown (Crash)
-			// Pronogo
-			// Intended for Pronogo's Poison effect.
+			// Pronogo -- Intended for Pronogo's Poison effect.
 			if (target && ~flags & 0x1) // Miss
 			{
-				HitUnit(target, GetWeaponDamage(this, target), bufs);
 				if (~flags & 0x2 && ~units_dat_flags[target->unit_id] & UnitFlags::Building) // NO: Hallucination, Building
 				{
-					try
-					{
-						CustomTimers::Timer* poisonTimer = new CustomTimers::ProportionalPoison(target, 3, 24, 0.05, this->parent);
-						target->utm.AddTimer(poisonTimer);
-					}
-					catch (std::bad_alloc &e)
-					{
-						std::string s("bad_alloc: ");
-						s.append(e.what());
-						Print(s.c_str());
+					int numTicks = 3;
+					int framesBtwnTicks = 24;
+					double hpPercent = 0;
+					//int PoisonLevel = 3; // DEBUG
+					int PoisonLevel = GetUpgradeLevel(Upgrade::UnusedUpgrade45, this->parent->player);
+					if (PoisonLevel < 2) hpPercent = 0.00;
+					else if (PoisonLevel >= 2) hpPercent = 0.10;
+					if (hpPercent != 0) {
+						try
+						{
+							CustomTimers::Timer* poisonTimer = new CustomTimers::ProportionalPoison(target, numTicks, framesBtwnTicks, hpPercent, this->parent);
+							target->utm.AddTimer(poisonTimer);
+						}
+						catch (std::bad_alloc &e)
+						{
+							std::string s("bad_alloc: ");
+							s.append(e.what());
+							Print(s.c_str());
+						}
 					}
 				}
+				HitUnit(target, GetWeaponDamage(this, target), bufs);
 			}
         break;
     }

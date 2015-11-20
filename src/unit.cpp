@@ -385,7 +385,17 @@ void Unit::ProgressOrder_Late(ProgressUnitResults *results)
         Case(CarrierStop);
         Case(CarrierAttack);
         Case(TowerGuard);
-        Case(TowerAttack);
+		// Pronogo
+        //Case(TowerAttack);
+		case Order::TowerAttack:
+			// I have NO idea how stable this is. -- Bunny
+			if (target) {
+				if (CanAttackUnit(target))
+					Order_TowerAttack(this);
+				else
+					Order_TowerGuard(this);
+			}
+		break;
         Case(TurretGuard);
         Case(TurretAttack);
         case Order::ComputerReturn:
@@ -1040,8 +1050,14 @@ void Unit::UpdatePoweredStates()
             {
                 unit->flags |= UnitStatus::Disabled;
                 // Incomplete buildings become disabled once finished
-                if (unit->flags & UnitStatus::Completed)
-                    unit->SetIscriptAnimation(Iscript::Animation::Disable, true, "UpdatePoweredStates disable", nullptr);
+				if (unit->flags & UnitStatus::Completed)
+				{
+					unit->SetIscriptAnimation(Iscript::Animation::Disable, true, "UpdatePoweredStates disable", nullptr);
+					// Pronogo -- non-neutral and unpowered means death
+					auto unitsPlayer = unit->player;
+					auto unitsPlayerType = bw::players[unitsPlayer].type;
+					if (unitsPlayer < 9 && (unitsPlayerType >= 0x1 && unitsPlayerType <= 0x4)) unit->Kill(nullptr);
+				}
             }
         }
     }
@@ -2812,6 +2828,34 @@ void Unit::Order_Die(ProgressUnitResults *results)
         if (~flags & UnitStatus::Hallucination || flags & UnitStatus::SelfDestructing)
         {
             SetIscriptAnimation(Iscript::Animation::Death, true, "Order_Die", results);
+			// Pronogo -- Pylons explode violently!
+			int weaponId = 72; // weapon Id that will be used for damaging through Pylon explosion
+							   // it will determine damage amount, radius, damage type, and explosion effect(?)
+			int damage = weapons_dat_damage[weaponId]; // if weapon damage is 0, this check is skipped entirely
+			if (flags & UnitStatus::Completed && unit_id == Unit::Pylon && damage != 0)
+			{
+				Rect16 splash_area(sprite->position, weapons_dat_outer_splash[weaponId]);
+				int unit_amount;
+				Unit **units, **units_beg;
+				units = units_beg = unit_search->FindUnitsRect(splash_area, &unit_amount);
+				for (Unit *u = *units++; u; u = *units++)
+				{
+					if (u->player == player) {
+						//u->order = Order::Die;
+						int distance = GetDistanceToUnit(u);
+						int tmpDamage = damage;
+						switch (weapons_dat_effect[weaponId]) {
+							case 0x2: // Splash (Radial)
+								if (distance <= weapons_dat_inner_splash[weaponId]) /* do nothing */;
+								else if (distance <= weapons_dat_middle_splash[weaponId]) tmpDamage /= 2;
+								else tmpDamage /= 4;
+							break;
+						}
+						results->weapon_damages.emplace_back(this, player, u, tmpDamage, weaponId, 0);
+					}
+				}
+				unit_search->PopResult();
+			}
             Die(results);
             return;
         }
@@ -3008,6 +3052,12 @@ bool Unit::CanAttackUnit(const Unit *enemy, bool check_detection) const
             if (ai)
                 return false;
         break;
+		// Pronogo
+		case PhotonCannon:
+			if (enemy->IsFlying() && GetUpgradeLevel(Upgrade::UnusedUpgrade45, player) < 3) {
+				return false;
+			}
+		break;
         default:
         break;
     }
@@ -3052,6 +3102,12 @@ bool Unit::CanAttackUnit_Fast(const Unit *enemy, bool check_detection) const
             if (ai)
                 return false;
         break;
+		// Pronogo
+		case PhotonCannon:
+			if (enemy->IsFlying() && GetUpgradeLevel(Upgrade::UnusedUpgrade45, player) < 3) {
+				return false;
+			}
+		break;
         default:
         break;
     }
