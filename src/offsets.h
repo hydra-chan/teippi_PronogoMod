@@ -368,8 +368,8 @@ namespace bw
 
     const offset<uint8_t> image_flags = 0x006CEFB5;
 
-    const array_offset<ImgRenderFuncs, 0x11> image_renderfuncs = 0x005125A0;
-    const array_offset<ImgUpdateFunc, 0x11> image_updatefuncs = 0x00512510;
+    const array_offset<ImgRenderFuncs, 0x12> image_renderfuncs = 0x005125A0;
+    const array_offset<ImgUpdateFunc, 0x12> image_updatefuncs = 0x00512510;
 
     const offset<uint8_t *> iscript = 0x006D1200;
     const offset<Unit *> active_iscript_unit = 0x006D11FC;
@@ -493,7 +493,7 @@ namespace bw
     const offset<uint32_t> unk_57F240 = 0x0057F240;
     const offset<uint32_t> unk_59CC7C = 0x0059CC7C;
     const offset<uint32_t> unk_6D5BCC = 0x006D5BCC;
-    const offset<char> map_path = 0x0057FD3C;
+    const array_offset<char, 0x104> map_path = 0x0057FD3C;
     const offset<uint16_t> campaign_mission = 0x0057F244;
     const offset<GameData> game_data = 0x005967F8;
     const offset<File *> loaded_save = 0x006D1218;
