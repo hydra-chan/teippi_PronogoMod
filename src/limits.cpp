@@ -541,6 +541,12 @@ int MovementState1c()
     return unit->MovementState1c();
 }
 
+int MovementState_FollowPath()
+{
+    REG_EAX(Unit *, unit);
+    return unit->MovementState_FollowPath();
+}
+
 int MovementState_Flyer()
 {
     return 0;
@@ -682,6 +688,13 @@ static void SetMovementDirectionToTarget()
 {
     REG_ECX(Flingy *, flingy);
     flingy->SetMovementDirectionToTarget();
+}
+
+static void ProgressMove_Hook()
+{
+    REG_ESI(Flingy *, flingy);
+    FlingyMoveResults unused;
+    flingy->ProgressMove(&unused);
 }
 
 static void * __stdcall LoadGrp_Hook(GrpSprite **loaded_grps, void **overlapped, void **out_file)
@@ -988,6 +1001,7 @@ void RemoveLimits(Common::PatchContext *patch)
     patch->JumpHook(bw::MovementState17, MovementState17);
     patch->JumpHook(bw::MovementState20, MovementState20);
     patch->JumpHook(bw::MovementState1c, MovementState1c);
+    patch->JumpHook(bw::MovementState_FollowPath, MovementState_FollowPath);
     patch->JumpHook(bw::MovementState_Flyer, MovementState_Flyer);
 
     patch->JumpHook(bw::Trig_KillUnitGeneric, Trig_KillUnitGeneric_Hook);
@@ -1024,6 +1038,7 @@ void RemoveLimits(Common::PatchContext *patch)
 
     patch->JumpHook(bw::ProgressFlingyTurning, ProgressFlingyTurning_Hook);
     patch->JumpHook(bw::SetMovementDirectionToTarget, SetMovementDirectionToTarget);
+    patch->JumpHook(bw::ProgressMove, ProgressMove_Hook);
 
     patch->JumpHook(bw::LoadGrp, LoadGrp_Hook);
     patch->JumpHook(bw::IsDrawnPixel, IsDrawnPixel);
